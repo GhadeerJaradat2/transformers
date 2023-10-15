@@ -421,8 +421,8 @@ class BertSelfAttention(nn.Module):
                         if(abs(i)<=theta):
                             K_original[0][head][index][w]=0
                             #print("K_original shape",K_original.shape)
-                            print("i",i)
-                            print("key_layer_MSBSecondRound1[0][head][index][w]",key_layer_MSBSecondRound1[0][head][index][w])
+                            # print("i",i)
+                            # print("key_layer_MSBSecondRound1[0][head][index][w]",key_layer_MSBSecondRound1[0][head][index][w])
                             #print("[head][index][w]",head,index,w)
                             key_layer_MSBSecondRound1[0][head][index][w]=0
                         index=index+1
@@ -528,7 +528,7 @@ class BertSelfAttention(nn.Module):
         
         ##########################################################################
         
-        print("attention",attention)
+        # print("attention",attention)
         attention_scores=attention
         # Take the dot product between "query" and "key" to get the raw attention scores.
         #attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruvtion, comment it to check round original MRF
