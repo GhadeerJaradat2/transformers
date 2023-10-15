@@ -6,7 +6,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0 
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -415,20 +415,21 @@ class BertSelfAttention(nn.Module):
                     w=0
                     
                     key_layer_MSBSecondRound1=key_layer_MSBSecondRound.transpose(-1, -2)
-                    print("key_layer_MSBSecondRound1 BEFORE",key_layer_MSBSecondRound1)
+                    
                     print("theta=",theta)
                     for i in (intermeriateList):
                         if(abs(i)<=theta):
                             K_original[0][head][index][w]=0
                             #print("K_original shape",K_original.shape)
-                            
+                            print("i",i)
+                            print("key_layer_MSBSecondRound1[0][head][index][w]",key_layer_MSBSecondRound1[0][head][index][w])
                             #print("[head][index][w]",head,index,w)
                             key_layer_MSBSecondRound1[0][head][index][w]=0
                         index=index+1
                         if index==64:
                             index=0
                             w=w+1
-                    print("key_layer_MSBSecondRound1 AFTER",key_layer_MSBSecondRound1)
+                    
                     #-------SESCOND ROUND----------------------
                     k=key_layer_MSBSecondRound1
                     intermeriateList=[]
