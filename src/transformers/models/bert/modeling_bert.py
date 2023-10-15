@@ -380,7 +380,7 @@ class BertSelfAttention(nn.Module):
        
         attention=torch.empty((1,12,QuerySize,QuerySize), dtype=torch.float32)
         #---------------------------------------------
-        
+        #for each head, for every Query multiply Qi X K
         for head in range(12):
             for iQ in range(QuerySize):
                 for rond in range(1):
@@ -391,8 +391,10 @@ class BertSelfAttention(nn.Module):
                     Min=k[0][0]*Qi[0]#inital values for Min
                     Max=k[0][0]*Qi[0]#inital values for Max
                     sum=0
-                    for e in range(QuerySize): #K is 64X n, this loop is for each col
-                        for p in range(64): # this loop is for each 64 val
+                    #
+                    #this loop is for the first round, Q, K 2 MSB
+                    for e in range(QuerySize): #K is 64X n, this  loops for n times
+                        for p in range(64): # this loop is for each 64 val, for each cloumn
                             K_original=key_layer.transpose(-1,-2)
                             IntermRes=Qi[p]*k[0][head][p][e]
                             #print(IntermRes)
@@ -436,8 +438,8 @@ class BertSelfAttention(nn.Module):
                     Min=k[0][0]*Qi[0]#inital values for Min
                     Max=k[0][0]*Qi[0]#inital values for Max
                     sum=0
-                    for e in range(QuerySize): #K is 64X n, this loop is for each col
-                        for p in range(64): # this loop is for each 64 val
+                    for e in range(QuerySize): #K is 64X n, this loops for n times
+                        for p in range(64): # this loop is for each 64 val, for each col
                             
                             IntermRes=Qi[p]*k[0][head][p][e]
                             intermeriateList.append(IntermRes.item())
@@ -467,6 +469,7 @@ class BertSelfAttention(nn.Module):
                             index=0
                             e=e+1
                     r=0
+                    #this loop for the full precision Q*K
                     for e1 in range(QuerySize): #K is 64X n, this loop is for each col
                         for p in range(64): # this loop is for each 64 val
                             
