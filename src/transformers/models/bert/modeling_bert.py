@@ -416,7 +416,7 @@ class BertSelfAttention(nn.Module):
                     
                     key_layer_MSBSecondRound1=key_layer_MSBSecondRound.transpose(-1, -2)
                     
-                    print("theta=",theta)
+                    
                     for i in (intermeriateList):
                         if(abs(i)<=theta):
                             K_original[0][head][index][w]=0
