@@ -542,19 +542,19 @@ class BertSelfAttention(nn.Module):
         Mean_attention_scores=torch.abs(Mean_attention_scores)
         
         #define theta for each layer, and prune the heads that are less than this theta
-        print("THETA 5")
-        thetaL0=3
-        thetaL1=4
-        thetaL2=4
-        thetaL3=4
-        thetaL4=3
-        thetaL5=3.5
-        thetaL6=3
-        thetaL7=3
-        thetaL8=3
-        thetaL9=5
-        thetaL10=5
-        thetaL11=4 
+        print("THETA 2")
+        thetaL0=1
+        thetaL1=1
+        thetaL2=2
+        thetaL3=2
+        thetaL4=2
+        thetaL5=2
+        thetaL6=2
+        thetaL7=2
+        thetaL8=2
+        thetaL9=2
+        thetaL10=2
+        thetaL11=2 
         global  Layerno       
         if(Layerno%12==0):
             for i in range(12):
