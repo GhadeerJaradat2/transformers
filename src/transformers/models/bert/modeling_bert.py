@@ -540,7 +540,7 @@ class BertSelfAttention(nn.Module):
         # find the mean values for each head of the MSBFirstround-bit attentions
         Mean_attention_scores=torch.mean(attention_scores,(2,3),False,dtype=torch.float32)
         Mean_attention_scores=torch.abs(Mean_attention_scores)
-        print(Mean_attention_scores.shape)
+        
         #define theta for each layer, and prune the heads that are less than this theta
         thetaL0=1
         thetaL1=1.5
