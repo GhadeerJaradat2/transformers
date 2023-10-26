@@ -570,7 +570,7 @@ class BertSelfAttention(nn.Module):
         thetaL7=1
         thetaL8=1
         thetaL9=1
-        thetaL10=
+        thetaL10=1
         thetaL11=1
         global  Layerno       
         if(Layerno%12==0):
