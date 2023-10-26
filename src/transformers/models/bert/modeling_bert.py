@@ -498,10 +498,10 @@ class BertSelfAttention(nn.Module):
         global MSBFirstround
         
         key_layer_MSBFirstRound=torch.abs(key_layer/2**MSBFirstround)
-        key_layer_MSBFirstRound=key_layer_MSBFirstRound.to(dtype=torch.int16)
+        key_layer_MSBFirstRound=key_layer_MSBFirstRound.to(dtype=torch.int32)
         
         query_layer_MSBFirstRound=torch.abs(query_layer/2**MSBFirstround)
-        query_layer_MSBFirstRound=query_layer_MSBFirstRound.to(dtype=torch.int16)
+        query_layer_MSBFirstRound=query_layer_MSBFirstRound.to(dtype=torch.int32)
         
         #------------------------------------------------------
         #compute QKT for the MSB first round 
