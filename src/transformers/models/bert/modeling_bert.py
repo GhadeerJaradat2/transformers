@@ -20,7 +20,7 @@ Layerno=0
 MaxFXP=127.99609375#Max value for fixed point representation
 MinFXP=-128#Min value for fixed point representation
 fractionsFXP=8 # number of fractions in FXP
-MSBFirstround=4
+MSBFirstround=0
 layer=0
 
 import math
@@ -495,18 +495,56 @@ class BertSelfAttention(nn.Module):
         
         #Multi Round FIltering Approximation
         # get the  significant bits MSBFirstround
-        #global MSBFirstround
+        global MSBFirstround
         
-        #key_layer_MSBFirstRound=key_layer/2**MSBFirstround
+        key_layer_MSBFirstRound=torch.abs(key_layer/2**MSBFirstround)
+        key_layer_MSBFirstRound=key_layer_MSBFirstRound.to(dtype=torch.int16)
         
-        #query_layer_MSBFirstRound=query_layer/2**MSBFirstround
+        query_layer_MSBFirstRound=torch.abs(query_layer/2**MSBFirstround)
+        query_layer_MSBFirstRound=query_layer_MSBFirstRound.to(dtype=torch.int16)
+        
         #------------------------------------------------------
         #compute QKT for the MSB first round 
-        #attention_scores_MSBFirstRound = torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
-        #attention_scores_MSBFirstRound=torch.round(attention_scores_MSBFirstRound*(2**fractionsFXP))/(2**fractionsFXP)
-        #attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
+        attention_scores_MSBFirstRound = torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
+        attention_scores_MSBFirstRound=torch.round(attention_scores_MSBFirstRound*(2**fractionsFXP))/(2**fractionsFXP)
+        attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
         # find the mean values for each head of the MSBFirstround-bit attentions
-        #Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float16)
+        Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float32)
+        ##print mean of attention heads per layer for the 4 MSB
+        global  Layerno
+        if(Layerno%12==0):
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer0.txt', 'a'))
+        if(Layerno%12==1):
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer1.txt', 'a'))
+        if(Layerno%12==2):
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer2.txt', 'a'))
+        if(Layerno%12==3):
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer3.txt', 'a'))
+        if(Layerno%12==4):
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer4.txt', 'a'))
+        if(Layerno%12==5):
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer5.txt', 'a'))
+        if(Layerno%12==6):
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer6.txt', 'a'))
+        if(Layerno%12==7):
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer7.txt', 'a'))
+        if(Layerno%12==8):
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer8.txt', 'a'))
+        if(Layerno%12==9):
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics//MSB7/meansperLayer9.txt', 'a'))
+        if(Layerno%12==10):
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics//MSB7/meansperLayer10.txt', 'a'))
+        if(Layerno%12==11):
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics//MSB7/meansperLayer11.txt', 'a'))
+        
+        Layerno=Layerno+1
+        
+        
+        
+        
+        
+        
+        
         #print("mean of attentionsin layer no",Layerno%12,Mean_attention_scores_MSBFirstRound)
         
         #sort the mean tensor and get the indicies
@@ -559,95 +597,95 @@ class BertSelfAttention(nn.Module):
         Mean_attention_scores=torch.abs(Mean_attention_scores)
         
             #define theta for each layer, and prune the heads that are less than this theta
-        print("THETA 5")
-        thetaL0=2
-        thetaL1=2
-        thetaL2=2
-        thetaL3=2
-        thetaL4=4
-        thetaL5=4
-        thetaL6=4
-        thetaL7=4
-        thetaL8=2
-        thetaL9=2
-        thetaL10=2
-        thetaL11=2
-        global  Layerno       
-        if(Layerno%12==0):
-            for i in range(12):
-                if Mean_attention_scores[0][i] <thetaL0:
-                    attention_scores[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+        # print("THETA 1")
+        # thetaL0=20
+        # thetaL1=20
+        # thetaL2=20
+        # thetaL3=20
+        # thetaL4=20
+        # thetaL5=20
+        # thetaL6=20
+        # thetaL7=20
+        # thetaL8=20
+        # thetaL9=20
+        # thetaL10=20
+        # thetaL11=20
+        # global  Layerno       
+        # if(Layerno%12==0):
+            # for i in range(12):
+                # if Mean_attention_scores[0][i] <thetaL0:
+                    # attention_scores[0][i]=0
+                    # value_layer[0][i]=0
+                    # print("deleted in L ", Layerno%12)
              
-        if(Layerno%12==1):
-            for i in range(12):
-                if Mean_attention_scores[0][i] <thetaL1:
-                    attention_scores[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==2):
-            for i in range(12):
-                if Mean_attention_scores[0][i] <thetaL2:
-                    attention_scores[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==3):
-            for i in range(12):
-                if Mean_attention_scores[0][i] <thetaL3:
-                    attention_scores[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==4):
-            for i in range(12):
-                if Mean_attention_scores[0][i] <thetaL4:
-                    attention_scores[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==5):
-            for i in range(12):
-                if Mean_attention_scores[0][i] <thetaL5:
-                    attention_scores[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==6):
-            for i in range(12):
-                if Mean_attention_scores[0][i] <thetaL6:
-                    attention_scores[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==7):
-            for i in range(12):
-                if Mean_attention_scores[0][i] <thetaL7:
-                    attention_scores[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==8):
-           for i in range(12):
-                if Mean_attention_scores[0][i] <thetaL8:
-                    attention_scores[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==9):
-            for i in range(12):
-                if Mean_attention_scores[0][i] <thetaL9:
-                    attention_scores[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==10):
-            for i in range(12):
-                if Mean_attention_scores[0][i] <thetaL10:
-                    attention_scores[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==11):
-            for i in range(12):
-                if Mean_attention_scores[0][i] <thetaL11:
-                    attention_scores[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+        # if(Layerno%12==1):
+            # for i in range(12):
+                # if Mean_attention_scores[0][i] <thetaL1:
+                    # attention_scores[0][i]=0
+                    # value_layer[0][i]=0
+                    # print("deleted in L ", Layerno%12)
+        # if(Layerno%12==2):
+            # for i in range(12):
+                # if Mean_attention_scores[0][i] <thetaL2:
+                    # attention_scores[0][i]=0
+                    # value_layer[0][i]=0
+                    # print("deleted in L ", Layerno%12)
+        # if(Layerno%12==3):
+            # for i in range(12):
+                # if Mean_attention_scores[0][i] <thetaL3:
+                    # attention_scores[0][i]=0
+                    # value_layer[0][i]=0
+                    # print("deleted in L ", Layerno%12)
+        # if(Layerno%12==4):
+            # for i in range(12):
+                # if Mean_attention_scores[0][i] <thetaL4:
+                    # attention_scores[0][i]=0
+                    # value_layer[0][i]=0
+                    # print("deleted in L ", Layerno%12)
+        # if(Layerno%12==5):
+            # for i in range(12):
+                # if Mean_attention_scores[0][i] <thetaL5:
+                    # attention_scores[0][i]=0
+                    # value_layer[0][i]=0
+                    # print("deleted in L ", Layerno%12)
+        # if(Layerno%12==6):
+            # for i in range(12):
+                # if Mean_attention_scores[0][i] <thetaL6:
+                    # attention_scores[0][i]=0
+                    # value_layer[0][i]=0
+                    # print("deleted in L ", Layerno%12)
+        # if(Layerno%12==7):
+            # for i in range(12):
+                # if Mean_attention_scores[0][i] <thetaL7:
+                    # attention_scores[0][i]=0
+                    # value_layer[0][i]=0
+                    # print("deleted in L ", Layerno%12)
+        # if(Layerno%12==8):
+           # for i in range(12):
+                # if Mean_attention_scores[0][i] <thetaL8:
+                    # attention_scores[0][i]=0
+                    # value_layer[0][i]=0
+                    # print("deleted in L ", Layerno%12)
+        # if(Layerno%12==9):
+            # for i in range(12):
+                # if Mean_attention_scores[0][i] <thetaL9:
+                    # attention_scores[0][i]=0
+                    # value_layer[0][i]=0
+                    # print("deleted in L ", Layerno%12)
+        # if(Layerno%12==10):
+            # for i in range(12):
+                # if Mean_attention_scores[0][i] <thetaL10:
+                    # attention_scores[0][i]=0
+                    # value_layer[0][i]=0
+                    # print("deleted in L ", Layerno%12)
+        # if(Layerno%12==11):
+            # for i in range(12):
+                # if Mean_attention_scores[0][i] <thetaL11:
+                    # attention_scores[0][i]=0
+                    # value_layer[0][i]=0
+                    # print("deleted in L ", Layerno%12)
         
-        Layerno=Layerno+1
+        #Layerno=Layerno+1
         
         # Take the dot product between "query" and "key" to get the raw attention scores.
         #####attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruvtion, comment it to check round original MRF
