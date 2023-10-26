@@ -513,29 +513,29 @@ class BertSelfAttention(nn.Module):
         ##print mean of attention heads per layer for the 4 MSB
         global  Layerno
         if(Layerno%12==0):
-            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer0.txt', 'a'))
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer0.txt', 'a'))
         if(Layerno%12==1):
-            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer1.txt', 'a'))
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer1.txt', 'a'))
         if(Layerno%12==2):
-            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer2.txt', 'a'))
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer2.txt', 'a'))
         if(Layerno%12==3):
-            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer3.txt', 'a'))
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer3.txt', 'a'))
         if(Layerno%12==4):
-            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer4.txt', 'a'))
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer4.txt', 'a'))
         if(Layerno%12==5):
-            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer5.txt', 'a'))
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer5.txt', 'a'))
         if(Layerno%12==6):
-            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer6.txt', 'a'))
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer6.txt', 'a'))
         if(Layerno%12==7):
-            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer7.txt', 'a'))
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer7.txt', 'a'))
         if(Layerno%12==8):
-            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics/MSB7/meansperLayer8.txt', 'a'))
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer8.txt', 'a'))
         if(Layerno%12==9):
-            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics//MSB7/meansperLayer9.txt', 'a'))
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer9.txt', 'a'))
         if(Layerno%12==10):
-            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics//MSB7/meansperLayer10.txt', 'a'))
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer10.txt', 'a'))
         if(Layerno%12==11):
-            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('SQuAD Statiscics//MSB7/meansperLayer11.txt', 'a'))
+            print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer11.txt', 'a'))
         
         Layerno=Layerno+1
         
