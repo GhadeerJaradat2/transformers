@@ -543,79 +543,91 @@ class BertSelfAttention(nn.Module):
         
         #define theta for each layer, and prune the heads that are less than this theta
         print("THETA 6")
-        thetaL0=1
-        thetaL1=1
-        thetaL2=1
-        thetaL3=1
-        thetaL4=1
-        thetaL5=1
-        thetaL6=1
-        thetaL7=1
-        thetaL8=1
-        thetaL9=1
-        thetaL10=1
-        thetaL11=1 
+        thetaL0=20
+        thetaL1=20
+        thetaL2=20
+        thetaL3=20
+        thetaL4=20
+        thetaL5=20
+        thetaL6=20
+        thetaL7=20
+        thetaL8=20
+        thetaL9=20
+        thetaL10=20
+        thetaL11=20
         global  Layerno       
         if(Layerno%12==0):
             for i in range(12):
                 if Mean_attention_scores[0][i] <thetaL0:
                     attention_scores[0][i]=0
+                    value_layer[0][i]=0
                     print("deleted in L ", Layerno%12)
              
         if(Layerno%12==1):
             for i in range(12):
                 if Mean_attention_scores[0][i] <thetaL1:
                     attention_scores[0][i]=0
+                    value_layer[0][i]=0
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==2):
             for i in range(12):
                 if Mean_attention_scores[0][i] <thetaL2:
                     attention_scores[0][i]=0
+                    value_layer[0][i]=0
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==3):
             for i in range(12):
                 if Mean_attention_scores[0][i] <thetaL3:
                     attention_scores[0][i]=0
+                    value_layer[0][i]=0
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==4):
             for i in range(12):
                 if Mean_attention_scores[0][i] <thetaL4:
                     attention_scores[0][i]=0
+                    value_layer[0][i]=0
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==5):
             for i in range(12):
                 if Mean_attention_scores[0][i] <thetaL5:
                     attention_scores[0][i]=0
+                    value_layer[0][i]=0
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==6):
             for i in range(12):
                 if Mean_attention_scores[0][i] <thetaL6:
                     attention_scores[0][i]=0
+                    value_layer[0][i]=0
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==7):
             for i in range(12):
                 if Mean_attention_scores[0][i] <thetaL7:
                     attention_scores[0][i]=0
+                    value_layer[0][i]=0
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==8):
            for i in range(12):
                 if Mean_attention_scores[0][i] <thetaL8:
                     attention_scores[0][i]=0
+                    value_layer[0][i]=0
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==9):
             for i in range(12):
                 if Mean_attention_scores[0][i] <thetaL9:
                     attention_scores[0][i]=0
+                    value_layer[0][i]=0
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==10):
             for i in range(12):
                 if Mean_attention_scores[0][i] <thetaL10:
                     attention_scores[0][i]=0
+                    value_layer[0][i]=0
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==11):
             for i in range(12):
                 if Mean_attention_scores[0][i] <thetaL11:
                     attention_scores[0][i]=0
+                    value_layer[0][i]=0
                     print("deleted in L ", Layerno%12)
         
         Layerno=Layerno+1
