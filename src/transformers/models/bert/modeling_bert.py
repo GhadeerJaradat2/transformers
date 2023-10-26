@@ -362,6 +362,7 @@ class BertSelfAttention(nn.Module):
         
         value_layer=torch.round(value_layer*(2**fractionsFXP))/(2**fractionsFXP)
         value_layer=torch.clip(value_layer,min=MinFXP,max=MaxFXP)
+      
         #############################################################################################
         ################Original MULTI ROUND FILTERING BEGINING###############################################
         #############################################################################################
@@ -532,17 +533,33 @@ class BertSelfAttention(nn.Module):
         
         ##########################################################################
         #%%%%%%%%%%%%%%%%%%%%%%%OUR MULTI ROUND FILTERING%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        #Multi Round FIltering Approximation
+        # get the  significant bits MSBFirstround
+        # global MSBFirstround
         
-        # print("attention",attention)
-        #attention_scores=attention
-        # Take the dot product between "query" and "key" to get the raw attention scores.
+        # key_layer_MSBFirstRound=key_layer/2**MSBFirstround
+        
+        # query_layer_MSBFirstRound=query_layer/2**MSBFirstround
+        
+        # ##compute QKT for the MSB first round 
+        # attention_scores_MSBFirstRound = torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
+        # attention_scores_MSBFirstRound=torch.round(attention_scores_MSBFirstRound*(2**fractionsFXP))/(2**fractionsFXP)
+        # attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
+        
+        # ##find the mean values for each head of the MSBFirstround-bit attentions
+        # Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float32)
+        # Mean_attention_scores_MSBFirstRound=torch.abs(Mean_attention_scores_MSBFirstRound)
+        
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruvtion, comment it to check round original MRF
-        # find the mean values for each head of the MSBFirstround-bit attentions
+        attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
+        attention_scores=torch.clip(attention_scores,min=MinFXP,max=MaxFXP)
+        
+       # #find the mean values for each head of the MSBFirstround-bit attentions
         Mean_attention_scores=torch.mean(attention_scores,(2,3),False,dtype=torch.float32)
         Mean_attention_scores=torch.abs(Mean_attention_scores)
         
-        #define theta for each layer, and prune the heads that are less than this theta
-        print("THETA 6")
+            #define theta for each layer, and prune the heads that are less than this theta
+        print("THETA 1")
         thetaL0=20
         thetaL1=20
         thetaL2=20
@@ -632,6 +649,14 @@ class BertSelfAttention(nn.Module):
         
         Layerno=Layerno+1
         
+        # Take the dot product between "query" and "key" to get the raw attention scores.
+        #####attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruvtion, comment it to check round original MRF
+        # #find the mean values for each head of the MSBFirstround-bit attentions
+        # Mean_attention_scores=torch.mean(attention_scores,(2,3),False,dtype=torch.float32)
+        # Mean_attention_scores=torch.abs(Mean_attention_scores)
+        
+    
+        
         
         # print("mean of attentions in layer no",Layerno%12,Mean_attention_scores)
         # find mean for a specicif head in a specific layer 
@@ -678,8 +703,7 @@ class BertSelfAttention(nn.Module):
         #Layerno=Layerno+1
        #change #5
         
-        attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
-        attention_scores=torch.clip(attention_scores,min=MinFXP,max=MaxFXP)
+       
 
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
@@ -704,6 +728,7 @@ class BertSelfAttention(nn.Module):
                 attention_scores = attention_scores + relative_position_scores_query + relative_position_scores_key
 
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
+        
         #change # 6
         
         attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
@@ -725,6 +750,7 @@ class BertSelfAttention(nn.Module):
             attention_probs = attention_probs * head_mask
 
         context_layer = torch.matmul(attention_probs, value_layer)
+        
         #change #7
         
         context_layer=torch.round(context_layer*(2**fractionsFXP))/(2**fractionsFXP)
