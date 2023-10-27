@@ -616,74 +616,74 @@ class BertSelfAttention(nn.Module):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL0:
                     attention_scores[0][i]=0
                     value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+                    # print("deleted in L ", Layerno%12)
              
         if(Layerno%12==1):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL1:
                     attention_scores[0][i]=0
                     value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+                    # print("deleted in L ", Layerno%12)
         if(Layerno%12==2):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL2:
                     attention_scores[0][i]=0
                     value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+                    # print("deleted in L ", Layerno%12)
         if(Layerno%12==3):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL3:
                     attention_scores[0][i]=0
                     value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+                    # print("deleted in L ", Layerno%12)
         if(Layerno%12==4):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL4:
                     attention_scores[0][i]=0
                     value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+                    # print("deleted in L ", Layerno%12)
         if(Layerno%12==5):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL5:
                     attention_scores[0][i]=0
                     value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+                    # print("deleted in L ", Layerno%12)
         if(Layerno%12==6):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL6:
                     attention_scores[0][i]=0
                     value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+                    # print("deleted in L ", Layerno%12)
         if(Layerno%12==7):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL7:
                     attention_scores[0][i]=0
                     value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+                    # print("deleted in L ", Layerno%12)
         if(Layerno%12==8):
            for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL8:
                     attention_scores[0][i]=0
                     value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+                    # print("deleted in L ", Layerno%12)
         if(Layerno%12==9):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL9:
                     attention_scores[0][i]=0
                     value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+                    # print("deleted in L ", Layerno%12)
         if(Layerno%12==10):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL10:
                     attention_scores[0][i]=0
                     value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+                    # print("deleted in L ", Layerno%12)
         if(Layerno%12==11):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL11:
                     attention_scores[0][i]=0
                     value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+                    # print("deleted in L ", Layerno%12)
         
         Layerno=Layerno+1
         
