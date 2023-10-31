@@ -399,18 +399,18 @@ class BertSelfAttention(nn.Module):
 
         #define theta for each layer, and prune the heads that are less than this theta
         print("THETA 1 MSB")
-        thetaL0=5
-        thetaL1=5
-        thetaL2=5
-        thetaL3=5
-        thetaL4=5
-        thetaL5=5
-        thetaL6=5
-        thetaL7=5
-        thetaL8=5
-        thetaL9=5
-        thetaL10=5
-        thetaL11=5
+        thetaL0=3
+        thetaL1=3
+        thetaL2=3
+        thetaL3=3
+        thetaL4=3
+        thetaL5=4
+        thetaL6=4
+        thetaL7=4
+        thetaL8=6
+        thetaL9=6
+        thetaL10=6
+        thetaL11=6
         global  Layerno       
         if(Layerno%12==0):
             for i in range(12):
