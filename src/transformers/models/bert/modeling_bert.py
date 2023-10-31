@@ -341,6 +341,9 @@ class BertSelfAttention(nn.Module):
 
         query_layer = self.transpose_for_scores(mixed_query_layer)
         
+        query_layer=torch.round(query_layer*(2**fractionsFXP))/(2**fractionsFXP)
+        query_layer=torch.clip(query_layer,min=MinFXP,max=MaxFXP)
+        
         use_cache = past_key_value is not None
         if self.is_decoder:
             # if cross_attention save Tuple(torch.Tensor, torch.Tensor) of all cross attention key/value_states.
@@ -363,130 +366,7 @@ class BertSelfAttention(nn.Module):
         value_layer=torch.round(value_layer*(2**fractionsFXP))/(2**fractionsFXP)
         value_layer=torch.clip(value_layer,min=MinFXP,max=MaxFXP)
       
-        #############################################################################################
-        ################Original MULTI ROUND FILTERING BEGINING###############################################
-        #############################################################################################
-        # #Multi Round FIltering Approximation
-        # #get the  significant bits MSBFirstround
-        # global MSBFirstround
-        # global layer
-        # print("Layer no", layer%12)
-        # layer=layer+1
-        # #get the most significant 2 bits
-        # key_layer_MSBFirstRound=key_layer/2**6
-        # #get the most 4 significant bits        
-        # key_layer_MSBSecondRound=key_layer/2**4
-        # #get the most 4 significant bits
-        # query_layer_MSBSecondRound=query_layer/2**4#--Query of shape 1,12,n,64
-        # QuerySize=query_layer_MSBSecondRound.shape[2]#--Querysize=n
-       
-        # attention=torch.empty((1,12,QuerySize,QuerySize), dtype=torch.float32)
-        # #---------------------------------------------
-        # #for each head, for every Query multiply Qi X K
-        # for head in range(12):
-            # for iQ in range(QuerySize):
-                # for rond in range(1):
-                    # intermeriateList=[]
-                    # Qi=query_layer_MSBSecondRound[0][head][iQ]
-                    # k=key_layer_MSBFirstRound.transpose(-1, -2)
-                    # #print("K.shap",k.shape)
-                    # Min=k[0][0]*Qi[0]#inital values for Min
-                    # Max=k[0][0]*Qi[0]#inital values for Max
-                    # sum=0
-                    # #
-                    # #this loop is for the first round, Q, K 2 MSB
-                    # for e in range(QuerySize): #K is 64X n, this  loops for n times
-                        # for p in range(64): # this loop is for each 64 val, for each cloumn
-                            # K_original=key_layer.transpose(-1,-2)
-                            # IntermRes=Qi[p]*k[0][head][p][e]
-                            # #print(IntermRes)
-                            # intermeriateList.append(IntermRes.item())
-                           
-                    # #end of the col multipilication
-                    
-                    # sumList=0
-                    # for i in intermeriateList:
-                        # sumList=sumList+i
-                    # Max=max(intermeriateList)
-                    # Min=min(intermeriateList)
-                    # mean=sumList/len(intermeriateList)
-                    # if alph>=0 and alph<1:
-                        # theta=alph*Max+(1-alph)*mean
-                    # elif alph>-1 and alph<0:
-                        # theta=alph*Min+(1-alph)*mean
-                        
-                    # index=0
-                    # w=0
-                    
-                    # key_layer_MSBSecondRound1=key_layer_MSBSecondRound.transpose(-1, -2)
-                    
-                    
-                    # for i in (intermeriateList):
-                        # if(abs(i)<=theta):
-                            # K_original[0][head][index][w]=0
-                            # #print("K_original shape",K_original.shape)
-                            # # print("i",i)
-                            # # print("key_layer_MSBSecondRound1[0][head][index][w]",key_layer_MSBSecondRound1[0][head][index][w])
-                            # #print("[head][index][w]",head,index,w)
-                            # key_layer_MSBSecondRound1[0][head][index][w]=0
-                        # index=index+1
-                        # if index==64:
-                            # index=0
-                            # w=w+1
-                    
-                    # #-------SESCOND ROUND----------------------
-                    # k=key_layer_MSBSecondRound1
-                    # intermeriateList=[]
-                    # Min=k[0][0]*Qi[0]#inital values for Min
-                    # Max=k[0][0]*Qi[0]#inital values for Max
-                    # sum=0
-                    # for e in range(QuerySize): #K is 64X n, this loops for n times
-                        # for p in range(64): # this loop is for each 64 val, for each col
-                            
-                            # IntermRes=Qi[p]*k[0][head][p][e]
-                            # intermeriateList.append(IntermRes.item())
-                           
-                        # #end of the col multipilication
-                    # sumList=0
-                    # for i in intermeriateList:
-                        # sumList=sumList+i
-                    # Max=max(intermeriateList)
-                    # Min=min(intermeriateList)
-                    # mean=sumList/len(intermeriateList)
-                    # if alph>=0 and alph<1:
-                        # theta=alph*Max+(1-alph)*mean
-                    # elif alph>-1 and alph<0:
-                        # theta=alph*Min+(1-alph)*mean
-                    
-                    # index=0
-                    # e=0
-                    
-                    # for i in (intermeriateList):
-                    
-                        # if(abs(i)<=theta):
-                            
-                            # K_original[0][head][index][e]=0
-                        # index=index+1
-                        # if index==64:
-                            # index=0
-                            # e=e+1
-                    # r=0
-                    # #this loop for the full precision Q*K
-                    # for e1 in range(QuerySize): #K is 64X n, this loop is for each col
-                        # for p in range(64): # this loop is for each 64 val
-                            
-                            # IntermRes=Qi[p]*K_original[0][head][p][e1]
-                            # r=r+IntermRes
-                            
-                        # attention[0][ head][iQ][e1]= r
-                        # r=0
-                                         
-                                    
-    
-    
-        #############################################################################################
-        ################OriginalMULTI ROUND FILTERING END###############################################
-        #############################################################################################
+        
         
         #############################################################################################
         ################MULTI ROUND FILTERING BEGINING###############################################
@@ -497,106 +377,27 @@ class BertSelfAttention(nn.Module):
         # get the  significant bits MSBFirstround
         global MSBFirstround
         
-        key_layer_MSBFirstRound=torch.abs(key_layer/2**MSBFirstround)
+        #get the integer part of the Key
+        key_layer_MSBFirstRound=key_layer/2**MSBFirstround
         key_layer_MSBFirstRound=torch.trunc(key_layer_MSBFirstRound)
-        
-        query_layer_MSBFirstRound=torch.abs(query_layer/2**MSBFirstround)
+        #get the fraction part of the Key
+        key_layer_MSBFirstRound_Fractions=key_layer-key_layer_MSBFirstRound
+        #get the integer part of the Query
+        query_layer_MSBFirstRound=query_layer/2**MSBFirstround
         query_layer_MSBFirstRound=torch.trunc(query_layer_MSBFirstRound)
+        #get the fraction part of the Query
+        query_layer_MSBFirstRound_Fractions=query_layer-query_layer_MSBFirstRound
         
         #------------------------------------------------------
-        #compute QKT for the MSB first round 
-        attention_scores_MSBFirstRound = torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
+        #compute QKT for the MSB first round -- integers
+        attention_scores_MSBFirstRound = torch.abs(torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2)))
         attention_scores_MSBFirstRound=torch.round(attention_scores_MSBFirstRound*(2**fractionsFXP))/(2**fractionsFXP)
         attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
+        
         # find the mean values for each head of the MSBFirstround-bit attentions
         Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float32)
-        ##print mean of attention heads per layer for the 4 MSB
-        # global  Layerno
-        # if(Layerno%12==0):
-            # print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer0.txt', 'a'))
-        # if(Layerno%12==1):
-            # print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer1.txt', 'a'))
-        # if(Layerno%12==2):
-            # print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer2.txt', 'a'))
-        # if(Layerno%12==3):
-            # print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer3.txt', 'a'))
-        # if(Layerno%12==4):
-            # print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer4.txt', 'a'))
-        # if(Layerno%12==5):
-            # print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer5.txt', 'a'))
-        # if(Layerno%12==6):
-            # print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer6.txt', 'a'))
-        # if(Layerno%12==7):
-            # print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer7.txt', 'a'))
-        # if(Layerno%12==8):
-            # print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer8.txt', 'a'))
-        # if(Layerno%12==9):
-            # print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer9.txt', 'a'))
-        # if(Layerno%12==10):
-            # print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer10.txt', 'a'))
-        # if(Layerno%12==11):
-            # print(Layerno%12,Mean_attention_scores_MSBFirstRound, file=open('./meansperLayer11.txt', 'a'))
-        
-        # Layerno=Layerno+1
-        
-        
-        
-        
-        
-        
-        
-        #print("mean of attentionsin layer no",Layerno%12,Mean_attention_scores_MSBFirstRound)
-        
-        #sort the mean tensor and get the indicies
-        #sortedMeans, indices=torch.sort(Mean_attention_scores_MSBFirstRound)
-        
-        #key_layer[0][indices[0][0]]=0 #Prune the least head
-        #key_layer[0][indices[0][1]]=0 #prune the 2nd least head
-        #key_layer[0][indices[0][2]]=0 #prune the 3rd least head
-        #key_layer[0][indices[0][3]]=0 #prune the 4th least head
-        #key_layer[0][indices[0][4]]=0 #prune the 5th least head
-        #key_layer[0][indices[0][5]]=0 #prune the 6th least head
-        #key_layer[0][indices[0][6]]=0 #prune the 7th least head
-        #key_layer[0][indices[0][7]]=0 #prune the 8th least head
-        #key_layer[0][indices[0][8]]=0 #prune the 9th least head
-        #key_layer[0][indices[0][9]]=0 #prune the 10th least head
-        #key_layer[0][indices[0][10]]=0 #prune the 11th least head
-        #key_layer[0][indices[0][11]]=0 #prune the 12th least head
-        ##Prune individual elements in the remaing heads
-        
-        
-        #############################################################################################
-        ################MULTI ROUND FILTERING END####################################################
-        #############################################################################################
-        
-        ##########################################################################
-        #%%%%%%%%%%%%%%%%%%%%%%%OUR MULTI ROUND FILTERING%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        #Multi Round FIltering Approximation
-        # get the  significant bits MSBFirstround
-        # global MSBFirstround
-        
-        # key_layer_MSBFirstRound=key_layer/2**MSBFirstround
-        
-        # query_layer_MSBFirstRound=query_layer/2**MSBFirstround
-        
-        # ##compute QKT for the MSB first round 
-        # attention_scores_MSBFirstRound = torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
-        # attention_scores_MSBFirstRound=torch.round(attention_scores_MSBFirstRound*(2**fractionsFXP))/(2**fractionsFXP)
-        # attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
-        
-        # ##find the mean values for each head of the MSBFirstround-bit attentions
-        # Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float32)
-        # Mean_attention_scores_MSBFirstRound=torch.abs(Mean_attention_scores_MSBFirstRound)
-        
-        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruvtion, comment it to check round original MRF
-        attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
-        attention_scores=torch.clip(attention_scores,min=MinFXP,max=MaxFXP)
-        
-       # #find the mean values for each head of the MSBFirstround-bit attentions
-        Mean_attention_scores=torch.mean(attention_scores,(2,3),False,dtype=torch.float32)
-        Mean_attention_scores=torch.abs(Mean_attention_scores)
-        
-            #define theta for each layer, and prune the heads that are less than this theta
+
+        #define theta for each layer, and prune the heads that are less than this theta
         print("THETA 3 MSB")
         thetaL0=8
         thetaL1=8
@@ -614,78 +415,118 @@ class BertSelfAttention(nn.Module):
         if(Layerno%12==0):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL0:
-                    attention_scores[0][i]=0
+                    query_layer[0][i]=0
+                    query_layer_MSBFirstRound[0][i]=0
+                    query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    # print("deleted in L ", Layerno%12)
+                    print("deleted in L ", Layerno%12)
              
         if(Layerno%12==1):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL1:
-                    attention_scores[0][i]=0
+                    query_layer[0][i]=0
+                    query_layer_MSBFirstRound[0][i]=0
+                    query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    # print("deleted in L ", Layerno%12)
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==2):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL2:
-                    attention_scores[0][i]=0
+                    query_layer[0][i]=0
+                    query_layer_MSBFirstRound[0][i]=0
+                    query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    # print("deleted in L ", Layerno%12)
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==3):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL3:
-                    attention_scores[0][i]=0
+                    query_layer[0][i]=0
+                    query_layer_MSBFirstRound[0][i]=0
+                    query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    # print("deleted in L ", Layerno%12)
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==4):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL4:
-                    attention_scores[0][i]=0
+                    query_layer[0][i]=0
+                    query_layer_MSBFirstRound[0][i]=0
+                    query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    # print("deleted in L ", Layerno%12)
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==5):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL5:
-                    attention_scores[0][i]=0
+                    query_layer[0][i]=0
+                    query_layer_MSBFirstRound[0][i]=0
+                    query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    # print("deleted in L ", Layerno%12)
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==6):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL6:
-                    attention_scores[0][i]=0
+                    query_layer[0][i]=0
+                    query_layer_MSBFirstRound[0][i]=0
+                    query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    # print("deleted in L ", Layerno%12)
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==7):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL7:
-                    attention_scores[0][i]=0
+                    query_layer[0][i]=0
+                    query_layer_MSBFirstRound[0][i]=0
+                    query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    # print("deleted in L ", Layerno%12)
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==8):
            for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL8:
-                    attention_scores[0][i]=0
+                    query_layer[0][i]=0
+                    query_layer_MSBFirstRound[0][i]=0
+                    query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    # print("deleted in L ", Layerno%12)
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==9):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL9:
-                    attention_scores[0][i]=0
+                    query_layer[0][i]=0
+                    query_layer_MSBFirstRound[0][i]=0
+                    query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    # print("deleted in L ", Layerno%12)
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==10):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL10:
-                    attention_scores[0][i]=0
+                    query_layer[0][i]=0
+                    query_layer_MSBFirstRound[0][i]=0
+                    query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    # print("deleted in L ", Layerno%12)
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==11):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL11:
-                    attention_scores[0][i]=0
+                    query_layer[0][i]=0
+                    query_layer_MSBFirstRound[0][i]=0
+                    query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    # print("deleted in L ", Layerno%12)
+                    print("deleted in L ", Layerno%12)
         
         Layerno=Layerno+1
+        
+        
+        int_att_scores=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
+        First_Frac_att_score=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
+        Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
+        Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
+        
+        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
+        
+        
+        
+        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruction, comment it to check round original MRF
+        attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
+        attention_scores=torch.clip(attention_scores,min=MinFXP,max=MaxFXP)
+        
+        
         
         # Take the dot product between "query" and "key" to get the raw attention scores.
         #####attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruvtion, comment it to check round original MRF
