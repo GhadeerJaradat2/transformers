@@ -404,13 +404,13 @@ class BertSelfAttention(nn.Module):
         thetaL2=4
         thetaL3=4
         thetaL4=4
-        thetaL5=4
-        thetaL6=4
+        thetaL5=5
+        thetaL6=5
         thetaL7=4
         thetaL8=4
-        thetaL9=4
-        thetaL10=4
-        thetaL11=4
+        thetaL9=6
+        thetaL10=6
+        thetaL11=6
         global  Layerno       
         if(Layerno%12==0):
             for i in range(12):
