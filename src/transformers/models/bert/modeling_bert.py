@@ -552,7 +552,7 @@ class BertSelfAttention(nn.Module):
                 for j in range(shape[-1]):
                     thetaSRF=Mean_attention_scores_MSBFRF_perRow[0][i][j]+(Mean_attention_scores_MSBFRF_perRow[0][i][j])             
                     for k in range(shape[-1]):
-                        if(torch.abs(int_att_scores[0][i][j][k])<torch.abs(thetaSRF)):
+                        #if(torch.abs(int_att_scores[0][i][j][k])<torch.abs(thetaSRF)):
                             #print("int_att_scores[0][i][j][k]",int_att_scores[0][i][j][k])
                             int_att_scores[0][i][j][k]=0
                             First_Frac_att_score[0][i][j][k]=0
