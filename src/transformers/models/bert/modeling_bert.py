@@ -414,6 +414,7 @@ class BertSelfAttention(nn.Module):
         thetaL9=6
         thetaL10=4
         thetaL11=4
+        listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
         global  Layerno       
         if(Layerno%12==0):
             for i in range(12):
@@ -422,6 +423,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
+                    listzeromean[i]=0
                     #print("deleted in L ", Layerno%12)
              
         if(Layerno%12==1):
@@ -431,6 +433,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
+                    listzeromean[i]=0
                     #print("deleted in L ", Layerno%12)
         if(Layerno%12==2):
             for i in range(12):
@@ -439,6 +442,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
+                    listzeromean[i]=0
                     #print("deleted in L ", Layerno%12)
         if(Layerno%12==3):
             for i in range(12):
@@ -447,6 +451,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
+                    listzeromean[i]=0
                     #print("deleted in L ", Layerno%12)
         if(Layerno%12==4):
             for i in range(12):
@@ -455,6 +460,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
+                    listzeromean[i]=0
                     #print("deleted in L ", Layerno%12)
         if(Layerno%12==5):
             for i in range(12):
@@ -463,6 +469,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
+                    listzeromean[i]=0
                     #print("deleted in L ", Layerno%12)
         if(Layerno%12==6):
             for i in range(12):
@@ -471,6 +478,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
+                    listzeromean[i]=0
                     #print("deleted in L ", Layerno%12)
         if(Layerno%12==7):
             for i in range(12):
@@ -479,6 +487,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
+                    listzeromean[i]=0
                     #print("deleted in L ", Layerno%12)
         if(Layerno%12==8):
            for i in range(12):
@@ -487,6 +496,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
+                    listzeromean[i]=0
                     #print("deleted in L ", Layerno%12)
         if(Layerno%12==9):
             for i in range(12):
@@ -495,6 +505,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
+                    listzeromean[i]=0
                     #print("deleted in L ", Layerno%12)
         if(Layerno%12==10):
             for i in range(12):
@@ -503,6 +514,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
+                    listzeromean[i]=0
                     #print("deleted in L ", Layerno%12)
         if(Layerno%12==11):
             for i in range(12):
@@ -511,19 +523,20 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
+                    listzeromean[i]=0
                     #print("deleted in L ", Layerno%12)
         
         Layerno=Layerno+1
         
         
         int_att_scores=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
-         
+        
         shape=int_att_scores.shape
         First_Frac_att_score=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
         Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         #------------SECOND ROUND FILTERING --------------------------------------------------------------
-        # find the mean per row
+        # # find the mean per row
         Mean_attention_scores_MSBFRF_perRow=torch.mean(int_att_scores,-1,False,dtype=torch.float32)
         
         minperRow=torch.min(int_att_scores,-1)[0]
@@ -531,19 +544,22 @@ class BertSelfAttention(nn.Module):
         
         global gama
         for i in range(12):
-            for j in range(shape[-1]):
-                if gama>=0 and gama<1:
-                    thetaSRF=gama*maxperRow[0][i][j]+(1-gama)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
-                elif gama>-1 and gama<0:
-                    thetaSRF=gama*maxperRow[0][i][j]+(1-gama)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
-                print("thetaSRF",torch.abs(thetaSRF))
-                for k in range(shape[-1]):
-                    if(torch.abs(First_Frac_att_score[0][i][j][k])<torch.abs(thetaSRF)):
-                        print("First_Frac_att_score[0][i][j][k]",First_Frac_att_score[0][i][j][k])
-                        int_att_scores[0][i][j][k]=0
-                        First_Frac_att_score[0][i][j][k]=0
-                        Second_Frac_att_score[0][i][j][k]=0
-                        Third_Frac_att_score[0][i][j][k]=0
+            if listzeromean[i]==0:
+                continue
+            else:
+                for j in range(shape[-1]):
+                    if gama>=0 and gama<1:
+                        thetaSRF=gama*maxperRow[0][i][j]+(1-gama)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
+                    elif gama>-1 and gama<0:
+                        thetaSRF=gama*maxperRow[0][i][j]+(1-gama)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
+                    
+                    for k in range(shape[-1]):
+                        if(torch.abs(int_att_scores[0][i][j][k])<torch.abs(thetaSRF)):
+                            #print("int_att_scores[0][i][j][k]",int_att_scores[0][i][j][k])
+                            int_att_scores[0][i][j][k]=0
+                            First_Frac_att_score[0][i][j][k]=0
+                            Second_Frac_att_score[0][i][j][k]=0
+                            Third_Frac_att_score[0][i][j][k]=0
                         
                     
                     
