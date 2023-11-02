@@ -568,7 +568,7 @@ class BertSelfAttention(nn.Module):
         FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
         
         attention_scores=FirstRoundAtt
-        
+        print("attention_scores",attention_scores)
         ######attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruction, comment it to check round original MRF
         attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
         attention_scores=torch.clip(attention_scores,min=MinFXP,max=MaxFXP)
