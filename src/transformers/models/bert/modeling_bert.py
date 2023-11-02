@@ -554,7 +554,7 @@ class BertSelfAttention(nn.Module):
                     for k in range(shape[-1]):
                         if(torch.abs(int_att_scores[0][i][j][k])<torch.abs(thetaSRF)):
                             #print("int_att_scores[0][i][j][k]",int_att_scores[0][i][j][k])
-                            #int_att_scores[0][i][j][k]=0
+                            int_att_scores[0][i][j][k]=0
                             First_Frac_att_score[0][i][j][k]=0
                             Second_Frac_att_score[0][i][j][k]=0
                             Third_Frac_att_score[0][i][j][k]=0
@@ -565,7 +565,7 @@ class BertSelfAttention(nn.Module):
         
         
         
-        FirstRoundAtt=int_att_scores#+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
+        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
         
         attention_scores=FirstRoundAtt
         
