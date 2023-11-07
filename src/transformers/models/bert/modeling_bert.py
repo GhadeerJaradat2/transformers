@@ -22,7 +22,7 @@ MinFXP=-128#Min value for fixed point representation
 fractionsFXP=8 # number of fractions in FXP
 MSBFirstround=0
 layer=0
-gama=-.5
+
 
 import math
 import os
@@ -396,7 +396,7 @@ class BertSelfAttention(nn.Module):
         attention_scores_MSBFirstRound=torch.abs(attention_scores_MSBFirstRound)
         attention_scores_MSBFirstRound=torch.round(attention_scores_MSBFirstRound*(2**fractionsFXP))/(2**fractionsFXP)
         attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
-        
+        intResAbsolute=attention_scores_MSBFirstRound
         # find the mean values for each head of the MSBFirstround-bit attentions
         Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float32)
 
@@ -529,36 +529,43 @@ class BertSelfAttention(nn.Module):
         
         Layerno=Layerno+1
         
-        
+       
         int_att_scores=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
-        
-        shape=int_att_scores.shape
         First_Frac_att_score=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
         Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         #------------SECOND ROUND APPROXIMATION --------------------------------------------------------------
-        # # find the mean per row
-        Mean_attention_scores_MSBFRF_perRow=torch.mean(int_att_scores,-1,False,dtype=torch.float32)
+        # # find the mean per row absolute values
+        Mean_attention_scores_MSBFRF_perRow=torch.mean(intResAbsolute,-1,False,dtype=torch.float32)
+        shape=int_att_scores.shape
+        minperRow=torch.min(intResAbsolute,-1)[0]
+        maxperRow=torch.max(intResAbsolute,-1)[0]
         
-        minperRow=torch.min(int_att_scores,-1)[0]
-        maxperRow=torch.max(int_att_scores,-1)[0]
-        
-        # global gama
+        global alph
         
         for i in range(12):
             if listzeromean[i]==0:
                 continue
             else:
                 for j in range(shape[-1]):
-                    thetaSRF=Mean_attention_scores_MSBFRF_perRow[0][i][j]+(Mean_attention_scores_MSBFRF_perRow[0][i][j])             
+                
+                    #find the theta second round filtering value
+                    if alph>=0 and alph<1:
+                        thetaSRF=alph*maxperRow[0][i][j]+(1-alph)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
+                       
+                    elif alph>-1 and alph<0:
+                        thetaSRF=alph*minperRow[0][i][j]+(1-alph)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
+                       
+                        #---------------------------------------
+                      
+                   
+                    
                     for k in range(shape[-1]):
-                        #if(torch.abs(int_att_scores[0][i][j][k])<torch.abs(thetaSRF)):
-                            #print("int_att_scores[0][i][j][k]",int_att_scores[0][i][j][k])
-                            int_att_scores[0][i][j][k]=0
+                        if torch.abs( int_att_scores[0][i][j][k] ) <  thetaSRF :
                             First_Frac_att_score[0][i][j][k]=0
                             Second_Frac_att_score[0][i][j][k]=0
                             Third_Frac_att_score[0][i][j][k]=0
-                        
+                       
                     
                     
         
@@ -568,7 +575,7 @@ class BertSelfAttention(nn.Module):
         FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
         
         attention_scores=FirstRoundAtt
-        print("attention_scores",attention_scores)
+        
         ######attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruction, comment it to check round original MRF
         attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
         attention_scores=torch.clip(attention_scores,min=MinFXP,max=MaxFXP)
