@@ -572,7 +572,7 @@ class BertSelfAttention(nn.Module):
         
         
         
-         FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_scor#+Third_Frac_att_score
+        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_scor #+Third_Frac_att_score
         
         attention_scores=FirstRoundAtt
         
