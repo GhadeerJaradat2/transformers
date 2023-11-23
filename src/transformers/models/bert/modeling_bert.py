@@ -390,135 +390,135 @@ class BertSelfAttention(nn.Module):
         
         #------------------------------------------------------
         #compute QKT for the MSB first round -- integers
-        attention_scores_MSBFirstRound = torch.abs(torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2)))
-        attention_scores_MSBFirstRound=torch.round(attention_scores_MSBFirstRound*(2**fractionsFXP))/(2**fractionsFXP)
-        attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
+        # attention_scores_MSBFirstRound = torch.abs(torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2)))
+        # attention_scores_MSBFirstRound=torch.round(attention_scores_MSBFirstRound*(2**fractionsFXP))/(2**fractionsFXP)
+        # attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
         
         # find the mean values for each head of the MSBFirstround-bit attentions
-        Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float32)
+        # Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float32)
 
         #define theta for each layer, and prune the heads that are less than this theta
-        print("THETA 5 MSB")
-        thetaL0=3
-        thetaL1=4
-        thetaL2=4
-        thetaL3=4
-        thetaL4=6
-        thetaL5=6
-        thetaL6=6
-        thetaL7=6
-        thetaL8=6
-        thetaL9=6
-        thetaL10=4
-        thetaL11=4
-        global  Layerno       
-        if(Layerno%12==0):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL0:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+        # print("THETA 5 MSB")
+        # thetaL0=3
+        # thetaL1=4
+        # thetaL2=4
+        # thetaL3=4
+        # thetaL4=6
+        # thetaL5=6
+        # thetaL6=6
+        # thetaL7=6
+        # thetaL8=6
+        # thetaL9=6
+        # thetaL10=4
+        # thetaL11=4
+        # global  Layerno       
+        # if(Layerno%12==0):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL0:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             print("deleted in L ", Layerno%12)
              
-        if(Layerno%12==1):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL1:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==2):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL2:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==3):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL3:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==4):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL4:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==5):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL5:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==6):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL6:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==7):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL7:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==8):
-           for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL8:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==9):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL9:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==10):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL10:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==11):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL11:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    print("deleted in L ", Layerno%12)
+        # if(Layerno%12==1):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL1:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             print("deleted in L ", Layerno%12)
+        # if(Layerno%12==2):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL2:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             print("deleted in L ", Layerno%12)
+        # if(Layerno%12==3):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL3:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             print("deleted in L ", Layerno%12)
+        # if(Layerno%12==4):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL4:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             print("deleted in L ", Layerno%12)
+        # if(Layerno%12==5):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL5:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             print("deleted in L ", Layerno%12)
+        # if(Layerno%12==6):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL6:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             print("deleted in L ", Layerno%12)
+        # if(Layerno%12==7):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL7:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             print("deleted in L ", Layerno%12)
+        # if(Layerno%12==8):
+        #    for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL8:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             print("deleted in L ", Layerno%12)
+        # if(Layerno%12==9):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL9:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             print("deleted in L ", Layerno%12)
+        # if(Layerno%12==10):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL10:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             print("deleted in L ", Layerno%12)
+        # if(Layerno%12==11):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL11:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             print("deleted in L ", Layerno%12)
         
-        Layerno=Layerno+1
+        # Layerno=Layerno+1
         
         
-        int_att_scores=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
-        First_Frac_att_score=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
-        Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
-        Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
+        # int_att_scores=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
+        # First_Frac_att_score=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
+        # Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
+        # Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         
-        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
+        # FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
         
         
         
