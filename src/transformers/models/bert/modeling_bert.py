@@ -15,7 +15,7 @@
 # limitations under the License.
 """PyTorch BERT model."""
 # For using 16 bit fixed point representation, Q2.13 is suffecient, Max=3.999879, Min=-4
-alph=0.5#{ -1--> 0% pruning ratio, 0--> 50%, 1-->100%, -0.5-->25%,.5-->75%}
+alph=1#{ -1--> 0% pruning ratio, 0--> 50%, 1-->100%, -0.5-->25%,.5-->75%}
 Layerno=0
 MaxFXP=127.99609375#Max value for fixed point representation
 MinFXP=-128#Min value for fixed point representation
@@ -534,37 +534,37 @@ class BertSelfAttention(nn.Module):
         First_Frac_att_score=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
         Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
-        #------------SECOND ROUND APPROXIMATION --------------------------------------------------------------
-        # # find the mean per row absolute values
-        Mean_attention_scores_MSBFRF_perRow=torch.mean(intResAbsolute,-1,False,dtype=torch.float32)
-        shape=int_att_scores.shape
-        minperRow=torch.min(intResAbsolute,-1)[0]
-        maxperRow=torch.max(intResAbsolute,-1)[0]
+        # #------------SECOND ROUND APPROXIMATION --------------------------------------------------------------
+        # # # find the mean per row absolute values
+        # Mean_attention_scores_MSBFRF_perRow=torch.mean(intResAbsolute,-1,False,dtype=torch.float32)
+        # shape=int_att_scores.shape
+        # minperRow=torch.min(intResAbsolute,-1)[0]
+        # maxperRow=torch.max(intResAbsolute,-1)[0]
         
-        global alph
+        # global alph
         
-        for i in range(12):
-            if listzeromean[i]==0:
-                continue
-            else:
-                for j in range(shape[-1]):
+        # for i in range(12):
+        #     if listzeromean[i]==0:
+        #         continue
+        #     else:
+        #         for j in range(shape[-1]):
                 
-                    #find the theta second round filtering value
-                    if alph>=0 and alph<1:
-                        thetaSRF=alph*maxperRow[0][i][j]+(1-alph)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
+        #             #find the theta second round filtering value
+        #             if alph>=0 and alph<1:
+        #                 thetaSRF=alph*maxperRow[0][i][j]+(1-alph)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
                        
-                    elif alph>-1 and alph<0:
-                        thetaSRF=alph*minperRow[0][i][j]+(1-alph)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
+        #             elif alph>-1 and alph<0:
+        #                 thetaSRF=alph*minperRow[0][i][j]+(1-alph)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
                        
-                        #---------------------------------------
+        #                 #---------------------------------------
                       
                    
                     
-                    for k in range(shape[-1]):
-                        if torch.abs( int_att_scores[0][i][j][k] ) <  thetaSRF :
-                            First_Frac_att_score[0][i][j][k]=0
-                            Second_Frac_att_score[0][i][j][k]=0
-                            Third_Frac_att_score[0][i][j][k]=0
+        #             for k in range(shape[-1]):
+        #                 if torch.abs( int_att_scores[0][i][j][k] ) <  thetaSRF :
+        #                     First_Frac_att_score[0][i][j][k]=0
+        #                     Second_Frac_att_score[0][i][j][k]=0
+        #                     Third_Frac_att_score[0][i][j][k]=0
                        
                     
                     
@@ -572,7 +572,7 @@ class BertSelfAttention(nn.Module):
         
         
         
-        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
+        FirstRoundAtt=int_att_scores#+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
         
         attention_scores=FirstRoundAtt
         
