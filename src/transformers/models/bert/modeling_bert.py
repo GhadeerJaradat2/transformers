@@ -535,36 +535,36 @@ class BertSelfAttention(nn.Module):
         Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
         Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         #------------SECOND ROUND APPROXIMATION --------------------------------------------------------------
-        # # find the mean per row absolute values
-        Mean_attention_scores_MSBFRF_perRow=torch.mean(intResAbsolute,-1,False,dtype=torch.float32)
-        shape=int_att_scores.shape
-        minperRow=torch.min(intResAbsolute,-1)[0]
-        maxperRow=torch.max(intResAbsolute,-1)[0]
+        # # # find the mean per row absolute values
+        # Mean_attention_scores_MSBFRF_perRow=torch.mean(intResAbsolute,-1,False,dtype=torch.float32)
+        # shape=int_att_scores.shape
+        # minperRow=torch.min(intResAbsolute,-1)[0]
+        # maxperRow=torch.max(intResAbsolute,-1)[0]
         
-        global alph
+        # global alph
         
-        for i in range(12):
-            if listzeromean[i]==0:
-                continue
-            else:
-                for j in range(shape[-1]):
+        # for i in range(12):
+        #     if listzeromean[i]==0:
+        #         continue
+        #     else:
+        #         for j in range(shape[-1]):
                 
-                    #find the theta second round filtering value
-                    if alph>=0 and alph<1:
-                        thetaSRF=alph*maxperRow[0][i][j]+(1-alph)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
+        #             #find the theta second round filtering value
+        #             if alph>=0 and alph<1:
+        #                 thetaSRF=alph*maxperRow[0][i][j]+(1-alph)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
                        
-                    elif alph>-1 and alph<0:
-                        thetaSRF=alph*minperRow[0][i][j]+(1-alph)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
+        #             elif alph>-1 and alph<0:
+        #                 thetaSRF=alph*minperRow[0][i][j]+(1-alph)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
                        
-                        #---------------------------------------
+        #                 #---------------------------------------
                       
                    
                     
-                    for k in range(shape[-1]):
-                        if torch.abs( int_att_scores[0][i][j][k] ) <  thetaSRF :
-                            First_Frac_att_score[0][i][j][k]=0
-                            Second_Frac_att_score[0][i][j][k]=0
-                            Third_Frac_att_score[0][i][j][k]=0
+        #             for k in range(shape[-1]):
+        #                 if torch.abs( int_att_scores[0][i][j][k] ) <  thetaSRF :
+        #                     First_Frac_att_score[0][i][j][k]=0
+        #                     Second_Frac_att_score[0][i][j][k]=0
+        #                     Third_Frac_att_score[0][i][j][k]=0
                        
                     
                     
@@ -572,7 +572,7 @@ class BertSelfAttention(nn.Module):
         
         
         
-        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
+         FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_scor#+Third_Frac_att_score
         
         attention_scores=FirstRoundAtt
         
