@@ -57,7 +57,7 @@ from ...utils import (
     replace_return_docstrings,
 )
 from .configuration_bert import BertConfig
-
+torch.set_printoptions(threshold=100_000)
 
 logger = logging.get_logger(__name__)
 
