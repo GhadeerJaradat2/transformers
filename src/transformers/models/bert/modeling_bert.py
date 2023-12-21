@@ -57,7 +57,8 @@ from ...utils import (
     replace_return_docstrings,
 )
 from .configuration_bert import BertConfig
-torch.set_printoptions(threshold=100_000)
+import numpy
+numpy.set_printoptions(threshold=sys.maxsize)
 
 logger = logging.get_logger(__name__)
 
