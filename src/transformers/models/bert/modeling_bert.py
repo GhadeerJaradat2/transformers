@@ -60,7 +60,7 @@ from .configuration_bert import BertConfig
 import numpy
 import sys
 numpy.set_printoptions(threshold=sys.maxsize)
-
+torch.set_printoptions(linewidth=200)
 logger = logging.get_logger(__name__)
 
 _CHECKPOINT_FOR_DOC = "bert-base-uncased"
