@@ -58,6 +58,7 @@ from ...utils import (
 )
 from .configuration_bert import BertConfig
 import numpy
+import sys
 numpy.set_printoptions(threshold=sys.maxsize)
 
 logger = logging.get_logger(__name__)
