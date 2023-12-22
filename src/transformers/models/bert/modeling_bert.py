@@ -588,7 +588,7 @@ class BertSelfAttention(nn.Module):
         # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][11], file=open('meanL11.txt', 'a'))
         #--------------------------------------------------------------------------------------------------------------------------------
         #print the integer attention values.
-        torch.set_printoptions(threshold=100000)
+        torch.set_printoptions(threshold=1000000)
         if(Layerno%12==0):
             print(Layerno%12,Interger_attention_score, file=open('attperLayer0.txt', 'a'))
         if(Layerno%12==1):
