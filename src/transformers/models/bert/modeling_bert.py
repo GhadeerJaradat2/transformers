@@ -23,7 +23,6 @@ fractionsFXP=8 # number of fractions in FXP
 MSBFirstround=0
 layer=0
 
-
 import math
 import os
 import warnings
@@ -363,7 +362,7 @@ class BertSelfAttention(nn.Module):
         
         key_layer=torch.round(key_layer*(2**fractionsFXP))/(2**fractionsFXP)
         key_layer=torch.clip(key_layer,min=MinFXP,max=MaxFXP)
-        
+        #print("key_layer shape ",key_layer.shape)
         value_layer=torch.round(value_layer*(2**fractionsFXP))/(2**fractionsFXP)
         value_layer=torch.clip(value_layer,min=MinFXP,max=MaxFXP)
       
@@ -391,27 +390,35 @@ class BertSelfAttention(nn.Module):
         
         #------------------------------------------------------
         #compute QKT for the MSB first round -- integers
-        attention_scores_MSBFirstRound = torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
-        intRes=attention_scores_MSBFirstRound
-        attention_scores_MSBFirstRound=torch.abs(attention_scores_MSBFirstRound)
+        attention_scores_MSBFirstRound = torch.abs(torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2)))
+        Interger_attention_score=attention_scores_MSBFirstRound 
+        torch.set_printoptions(threshold=10000000)
+        # print("query_layer_MSBFirstRound[0][0]",query_layer_MSBFirstRound[0][0].shape)
+        # tolbaVal=torch.matmul(query_layer_MSBFirstRound[0][0], key_layer_MSBFirstRound.transpose(-1, -2)[0][0])
+        # print(key_layer_MSBFirstRound.transpose(-1, -2)[0][0], file=open('KEYTranspose.txt', 'a'))
+        # print(query_layer_MSBFirstRound[0][0], file=open('Query.txt', 'a'))
+        # print(tolbaVal, file=open('query_Ktranspose.txt', 'a'))
+        
+        attention_scores_MSBFirstRound= torch.abs(attention_scores_MSBFirstRound)
+        
         attention_scores_MSBFirstRound=torch.round(attention_scores_MSBFirstRound*(2**fractionsFXP))/(2**fractionsFXP)
         attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
-        intResAbsolute=attention_scores_MSBFirstRound
+        
         # find the mean values for each head of the MSBFirstround-bit attentions
         Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float32)
 
         #define theta for each layer, and prune the heads that are less than this theta
-        #print("THETA 5 MSB")
-        thetaL0=3
+        #print("THETA 6 MSB")
+        thetaL0=4
         thetaL1=4
         thetaL2=4
         thetaL3=4
-        thetaL4=6
-        thetaL5=6
-        thetaL6=6
-        thetaL7=6
-        thetaL8=6
-        thetaL9=6
+        thetaL4=4
+        thetaL5=4
+        thetaL6=4
+        thetaL7=4
+        thetaL8=4
+        thetaL9=4
         thetaL10=4
         thetaL11=4
         listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
@@ -529,60 +536,108 @@ class BertSelfAttention(nn.Module):
         
         Layerno=Layerno+1
         
-       
+        
         int_att_scores=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
         First_Frac_att_score=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
         Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
-        #------------SECOND ROUND APPROXIMATION --------------------------------------------------------------
-        # # find the mean per row absolute values
-        Mean_attention_scores_MSBFRF_perRow=torch.mean(intResAbsolute,-1,False,dtype=torch.float32)
-        shape=int_att_scores.shape
-        minperRow=torch.min(intResAbsolute,-1)[0]
-        maxperRow=torch.max(intResAbsolute,-1)[0]
         
-        global alph
+        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score#+Third_Frac_att_score
         
+        
+        attention_scores=FirstRoundAtt
+        #attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruction, comment it to check round original MRF
+        shape=attention_scores.shape
+        attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
+        attention_scores=torch.clip(attention_scores,min=MinFXP,max=MaxFXP)
         for i in range(12):
             if listzeromean[i]==0:
                 continue
             else:
-                for j in range(shape[-1]):
-                
-                    #find the theta second round filtering value
-                    if alph>=0 and alph<1:
-                        thetaSRF=alph*maxperRow[0][i][j]+(1-alph)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
-                       
-                    elif alph>-1 and alph<0:
-                        thetaSRF=alph*minperRow[0][i][j]+(1-alph)*Mean_attention_scores_MSBFRF_perRow[0][i][j]
-                       
-                        #---------------------------------------
-                      
-                   
-                    
+                for j in range(shape[-1]):             
                     for k in range(shape[-1]):
-                        if torch.abs( int_att_scores[0][i][j][k] ) <  thetaSRF :
-                            First_Frac_att_score[0][i][j][k]=0
-                            Second_Frac_att_score[0][i][j][k]=0
-                            Third_Frac_att_score[0][i][j][k]=0
-                       
-                    
-                    
+                        if torch.abs( attention_scores[0][i][j][k] ) <  .01 :
+                            attention_scores[0][i][j][k]=0
         
         
-        
-        
-        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
-        
-        attention_scores=FirstRoundAtt
-        
-        ######attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruction, comment it to check round original MRF
-        attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
-        attention_scores=torch.clip(attention_scores,min=MinFXP,max=MaxFXP)
-        
-        
+        # Take the dot product between "query" and "key" to get the raw attention scores.
+        #####attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruvtion, comment it to check round original MRF
+        # #find the mean values for each head of the MSBFirstround-bit attentions
+        # Mean_attention_scores=torch.mean(attention_scores,(2,3),False,dtype=torch.float32)
+        # Mean_attention_scores=torch.abs(Mean_attention_scores)
         
     
+        
+        
+        # print("mean of attentions in layer no",Layerno%12,Mean_attention_scores)
+        # find mean for a specicif head in a specific layer 
+        # in the output file I will take all layer 0 head 0 and computer the mean for them.
+        # #FInd the mean of each layer
+        # in the output file I will take all layer 0 heads and computer the mean for them.
+        # if(Layerno%12==0):
+            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer0.txt', 'a'))
+        # if(Layerno%12==1):
+            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer1.txt', 'a'))
+        # if(Layerno%12==2):
+            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer2.txt', 'a'))
+        # if(Layerno%12==3):
+            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer3.txt', 'a'))
+        # if(Layerno%12==4):
+            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer4.txt', 'a'))
+        # if(Layerno%12==5):
+            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer5.txt', 'a'))
+        # if(Layerno%12==6):
+            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer6.txt', 'a'))
+        # if(Layerno%12==7):
+            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer7.txt', 'a'))
+        # if(Layerno%12==8):
+            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer8.txt', 'a'))
+        # if(Layerno%12==9):
+            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer9.txt', 'a'))
+        # if(Layerno%12==10):
+            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer10.txt', 'a'))
+        # if(Layerno%12==11):
+            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer11.txt', 'a'))
+        #-----------------------------------------------------------------------------------------------------------------------------------
+        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][0], file=open('meanL0.txt', 'a'))
+        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][1], file=open('meanL1.txt', 'a'))
+        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][2], file=open('meanL2.txt', 'a'))
+        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][3], file=open('meanL3.txt', 'a'))
+        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][4], file=open('meanL4.txt', 'a'))
+        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][5], file=open('meanL5.txt', 'a'))
+        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][6], file=open('meanL6.txt', 'a'))
+        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][7], file=open('meanL7.txt', 'a'))
+        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][8], file=open('meanL8.txt', 'a'))
+        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][9], file=open('meanL9.txt', 'a'))
+        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][10], file=open('meanL10.txt', 'a'))
+        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][11], file=open('meanL11.txt', 'a'))
+        #--------------------------------------------------------------------------------------------------------------------------------
+        #print the integer attention values.
+        # if(Layerno%12==0):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer0.txt', 'a'))
+        # if(Layerno%12==1):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer1.txt', 'a'))
+        # if(Layerno%12==2):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer2.txt', 'a'))
+        # if(Layerno%12==3):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer3.txt', 'a'))
+        # if(Layerno%12==4):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer4.txt', 'a'))
+        # if(Layerno%12==5):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer5.txt', 'a'))
+        # if(Layerno%12==6):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer6.txt', 'a'))
+        # if(Layerno%12==7):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer7.txt', 'a'))
+        # if(Layerno%12==8):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer8.txt', 'a'))
+        # if(Layerno%12==9):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer9.txt', 'a'))
+        # if(Layerno%12==10):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer10.txt', 'a'))
+        # if(Layerno%12==11):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer11.txt', 'a'))
+        
        #change #5
         
        
