@@ -416,18 +416,18 @@ class BertSelfAttention(nn.Module):
         #print("Mean_attention_scores_MSBFirstRound",Mean_attention_scores_MSBFirstRound)
         #define theta for each layer, and prune the heads that are less than this theta
         #print("THETA 6 MSB")
-        thetaL0=200
-        thetaL1=230
-        thetaL2=200
+        thetaL0=220
+        thetaL1=220
+        thetaL2=220
         thetaL3=220
         thetaL4=220
         thetaL5=220
         thetaL6=220
-        thetaL7=230
-        thetaL8=230
-        thetaL9=250
-        thetaL10=200
-        thetaL11=200
+        thetaL7=220
+        thetaL8=220
+        thetaL9=220
+        thetaL10=220
+        thetaL11=220
         listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
         global  Layerno       
         if(Layerno%12==0):
