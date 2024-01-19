@@ -22,7 +22,7 @@ MinFXP=-128#Min value for fixed point representation
 fractionsFXP=8 # number of fractions in FXP
 MSBFirstround=0
 layer=0
-
+Thirdcounter=0
 import math
 import os
 import warnings
@@ -57,10 +57,8 @@ from ...utils import (
     replace_return_docstrings,
 )
 from .configuration_bert import BertConfig
-import numpy
-import sys
-numpy.set_printoptions(threshold=sys.maxsize)
-torch.set_printoptions(linewidth=200)
+
+
 logger = logging.get_logger(__name__)
 
 _CHECKPOINT_FOR_DOC = "bert-base-uncased"
@@ -364,7 +362,7 @@ class BertSelfAttention(nn.Module):
         
         key_layer=torch.round(key_layer*(2**fractionsFXP))/(2**fractionsFXP)
         key_layer=torch.clip(key_layer,min=MinFXP,max=MaxFXP)
-        
+        #print("key_layer shape ",key_layer.shape)
         value_layer=torch.round(value_layer*(2**fractionsFXP))/(2**fractionsFXP)
         value_layer=torch.clip(value_layer,min=MinFXP,max=MaxFXP)
       
@@ -389,11 +387,19 @@ class BertSelfAttention(nn.Module):
         query_layer_MSBFirstRound=torch.trunc(query_layer_MSBFirstRound)
         #get the fraction part of the Query
         query_layer_MSBFirstRound_Fractions=query_layer-query_layer_MSBFirstRound
-        
+      
         #------------------------------------------------------
         #compute QKT for the MSB first round -- integers
         attention_scores_MSBFirstRound = torch.abs(torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2)))
+        #print("INT Att Score",torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2)))
         Interger_attention_score=attention_scores_MSBFirstRound 
+        
+        #print("query_layer_MSBFirstRound[0][0]",query_layer_MSBFirstRound[0][0].shape)
+        
+        # tolbaVal=torch.matmul(query_layer_MSBFirstRound[0][0], key_layer_MSBFirstRound.transpose(-1, -2)[0][0])
+        # print(key_layer_MSBFirstRound.transpose(-1, -2)[0][0], file=open('Tolba/KEYTranspose.txt', 'a'))
+        # print(query_layer_MSBFirstRound[0][0], file=open('Tolba/Query.txt', 'a'))
+        # print(tolbaVal, file=open('Tolba/Result.txt', 'a'))
         
         attention_scores_MSBFirstRound= torch.abs(attention_scores_MSBFirstRound)
         
@@ -401,22 +407,28 @@ class BertSelfAttention(nn.Module):
         attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
         
         # find the mean values for each head of the MSBFirstround-bit attentions
-        Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float32)
-
+        #Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float32)
+        #print("attention_scores_MSBFirstRound shape",attention_scores_MSBFirstRound.shape)
+        
+        Mean_attention_scores_MSBFirstRound=torch.sum(attention_scores_MSBFirstRound,(2,3))
+        #print("Mean_attention_scores_MSBFirstRound shape",Mean_attention_scores_MSBFirstRound.shape)
+        #print("sum of abs tensor",Mean_attention_scores_MSBFirstRound)
+        #print("Mean_attention_scores_MSBFirstRound",Mean_attention_scores_MSBFirstRound)
         #define theta for each layer, and prune the heads that are less than this theta
         #print("THETA 6 MSB")
-        thetaL0=4
-        thetaL1=4
-        thetaL2=4
-        thetaL3=4
-        thetaL4=4
-        thetaL5=4
-        thetaL6=4
-        thetaL7=4
-        thetaL8=4
-        thetaL9=4
-        thetaL10=4
-        thetaL11=4
+        thetaL0=200
+        thetaL1=230
+        thetaL2=200
+        thetaL3=220
+        thetaL4=220
+        thetaL5=220
+        thetaL6=220
+        thetaL7=230
+        thetaL8=230
+        thetaL9=250
+        thetaL10=200
+        thetaL11=200
+        listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
         global  Layerno       
         if(Layerno%12==0):
             for i in range(12):
@@ -425,7 +437,9 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    #print("deleted in L ", Layerno%12)
+                    listzeromean[i]=0
+                    
+                    print("deleted in L ", Layerno%12)
              
         if(Layerno%12==1):
             for i in range(12):
@@ -434,7 +448,8 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    #print("deleted in L ", Layerno%12)
+                    listzeromean[i]=0
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==2):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL2:
@@ -442,7 +457,8 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    #print("deleted in L ", Layerno%12)
+                    listzeromean[i]=0
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==3):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL3:
@@ -450,7 +466,8 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    #print("deleted in L ", Layerno%12)
+                    listzeromean[i]=0
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==4):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL4:
@@ -458,7 +475,8 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    #print("deleted in L ", Layerno%12)
+                    listzeromean[i]=0
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==5):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL5:
@@ -466,7 +484,8 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    #print("deleted in L ", Layerno%12)
+                    listzeromean[i]=0
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==6):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL6:
@@ -474,7 +493,8 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    #print("deleted in L ", Layerno%12)
+                    listzeromean[i]=0
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==7):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL7:
@@ -482,7 +502,8 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    #print("deleted in L ", Layerno%12)
+                    listzeromean[i]=0
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==8):
            for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL8:
@@ -490,7 +511,8 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    #print("deleted in L ", Layerno%12)
+                    listzeromean[i]=0
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==9):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL9:
@@ -498,7 +520,8 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    #print("deleted in L ", Layerno%12)
+                    listzeromean[i]=0
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==10):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL10:
@@ -506,7 +529,8 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    #print("deleted in L ", Layerno%12)
+                    listzeromean[i]=0
+                    print("deleted in L ", Layerno%12)
         if(Layerno%12==11):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL11:
@@ -514,7 +538,8 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    #print("deleted in L ", Layerno%12)
+                    listzeromean[i]=0
+                    print("deleted in L ", Layerno%12)
         
         Layerno=Layerno+1
         
@@ -524,12 +549,12 @@ class BertSelfAttention(nn.Module):
         Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
         Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         
-        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
+        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score#+Third_Frac_att_score
         
-        
-        
-        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruction, comment it to check round original MRF
-        
+        #print("FirstRoundAtt",FirstRoundAtt);
+        attention_scores=FirstRoundAtt
+        #attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruction, comment it to check round original MRF
+        shape=attention_scores.shape
         attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
         attention_scores=torch.clip(attention_scores,min=MinFXP,max=MaxFXP)
         
@@ -540,8 +565,7 @@ class BertSelfAttention(nn.Module):
         # #find the mean values for each head of the MSBFirstround-bit attentions
         # Mean_attention_scores=torch.mean(attention_scores,(2,3),False,dtype=torch.float32)
         # Mean_attention_scores=torch.abs(Mean_attention_scores)
-        
-    
+
         
         
         # print("mean of attentions in layer no",Layerno%12,Mean_attention_scores)
@@ -588,31 +612,30 @@ class BertSelfAttention(nn.Module):
         # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][11], file=open('meanL11.txt', 'a'))
         #--------------------------------------------------------------------------------------------------------------------------------
         #print the integer attention values.
-        torch.set_printoptions(threshold=1000000)
-        if(Layerno%12==0):
-            print(Layerno%12,Interger_attention_score, file=open('attperLayer0.txt', 'a'))
-        if(Layerno%12==1):
-            print(Layerno%12,Interger_attention_score, file=open('attperLayer1.txt', 'a'))
-        if(Layerno%12==2):
-            print(Layerno%12,Interger_attention_score, file=open('attperLayer2.txt', 'a'))
-        if(Layerno%12==3):
-            print(Layerno%12,Interger_attention_score, file=open('attperLayer3.txt', 'a'))
-        if(Layerno%12==4):
-            print(Layerno%12,Interger_attention_score, file=open('attperLayer4.txt', 'a'))
-        if(Layerno%12==5):
-            print(Layerno%12,Interger_attention_score, file=open('attperLayer5.txt', 'a'))
-        if(Layerno%12==6):
-            print(Layerno%12,Interger_attention_score, file=open('attperLayer6.txt', 'a'))
-        if(Layerno%12==7):
-            print(Layerno%12,Interger_attention_score, file=open('attperLayer7.txt', 'a'))
-        if(Layerno%12==8):
-            print(Layerno%12,Interger_attention_score, file=open('attperLayer8.txt', 'a'))
-        if(Layerno%12==9):
-            print(Layerno%12,Interger_attention_score, file=open('attperLayer9.txt', 'a'))
-        if(Layerno%12==10):
-            print(Layerno%12,Interger_attention_score, file=open('attperLayer10.txt', 'a'))
-        if(Layerno%12==11):
-            print(Layerno%12,Interger_attention_score, file=open('attperLayer11.txt', 'a'))
+        # if(Layerno%12==0):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer0.txt', 'a'))
+        # if(Layerno%12==1):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer1.txt', 'a'))
+        # if(Layerno%12==2):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer2.txt', 'a'))
+        # if(Layerno%12==3):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer3.txt', 'a'))
+        # if(Layerno%12==4):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer4.txt', 'a'))
+        # if(Layerno%12==5):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer5.txt', 'a'))
+        # if(Layerno%12==6):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer6.txt', 'a'))
+        # if(Layerno%12==7):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer7.txt', 'a'))
+        # if(Layerno%12==8):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer8.txt', 'a'))
+        # if(Layerno%12==9):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer9.txt', 'a'))
+        # if(Layerno%12==10):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer10.txt', 'a'))
+        # if(Layerno%12==11):
+        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer11.txt', 'a'))
         
        #change #5
         
