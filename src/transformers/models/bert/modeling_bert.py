@@ -395,22 +395,22 @@ class BertSelfAttention(nn.Module):
         attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
         
         # find the mean values for each head of the MSBFirstround-bit attentions
-        Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float32)
-
+        #Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float32)
+        Mean_attention_scores_MSBFirstRound=torch.sum(attention_scores_MSBFirstRound,(2,3))
         #define theta for each layer, and prune the heads that are less than this theta
         print("THETA 6 MSB")
-        thetaL0=4
-        thetaL1=4
-        thetaL2=4
-        thetaL3=4
-        thetaL4=4
-        thetaL5=4
-        thetaL6=4
-        thetaL7=4
-        thetaL8=4
-        thetaL9=4
-        thetaL10=4
-        thetaL11=4
+        thetaL0=220
+        thetaL1=220
+        thetaL2=220
+        thetaL3=220
+        thetaL4=220
+        thetaL5=220
+        thetaL6=220
+        thetaL7=220
+        thetaL8=220
+        thetaL9=220
+        thetaL10=220
+        thetaL11=220
         global  Layerno       
         if(Layerno%12==0):
             for i in range(12):
@@ -518,13 +518,13 @@ class BertSelfAttention(nn.Module):
         Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
         Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         
-        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
+        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score #+Third_Frac_att_score
         
         
         
-        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruction, comment it to check round original MRF
-        attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
-        attention_scores=torch.clip(attention_scores,min=MinFXP,max=MaxFXP)
+        #attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruction, comment it to check round original MRF
+        #attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
+        #attention_scores=torch.clip(attention_scores,min=MinFXP,max=MaxFXP)
         
         
         
