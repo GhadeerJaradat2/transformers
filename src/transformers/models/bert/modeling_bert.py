@@ -14,15 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """PyTorch BERT model."""
-# For using 16 bit fixed point representation, Q2.13 is suffecient, Max=3.999879, Min=-4
-alph=-0.5#{ -1--> 0% pruning ratio, 0--> 50%, 1-->100%, -0.5-->25%,.5-->75%}
-Layerno=0
-MaxFXP=127.99609375#Max value for fixed point representation
-MinFXP=-128#Min value for fixed point representation
-fractionsFXP=8 # number of fractions in FXP
-MSBFirstround=0
-layer=0
-Thirdcounter=0
+import time
+total_time = 0
 import math
 import os
 import warnings
@@ -186,7 +179,7 @@ def load_tf_weights_in_bert(model, config, tf_checkpoint_path):
 
 class BertEmbeddings(nn.Module):
     """Construct the embeddings from word, position and token_type embeddings."""
-        
+
     def __init__(self, config):
         super().__init__()
         self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
@@ -245,21 +238,12 @@ class BertEmbeddings(nn.Module):
             embeddings += position_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
-        
-        #change #1
-        #Convert the embedings to FIxed point INT 16
-        global fractionsFXP,MinFXP,MaxFXP
-        embeddings=torch.round(embeddings*(2**fractionsFXP))/(2**fractionsFXP)
-        embeddings=torch.clip(embeddings,min=MinFXP,max=MaxFXP)
-
         return embeddings
 
 
 class BertSelfAttention(nn.Module):
-    
     def __init__(self, config, position_embedding_type=None):
         super().__init__()
-        
         if config.hidden_size % config.num_attention_heads != 0 and not hasattr(config, "embedding_size"):
             raise ValueError(
                 f"The hidden size ({config.hidden_size}) is not a multiple of the number of attention "
@@ -267,17 +251,13 @@ class BertSelfAttention(nn.Module):
             )
 
         self.num_attention_heads = config.num_attention_heads
-        
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
         self.query = nn.Linear(config.hidden_size, self.all_head_size)
-        
-        
         self.key = nn.Linear(config.hidden_size, self.all_head_size)
-        
         self.value = nn.Linear(config.hidden_size, self.all_head_size)
-        
+
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
         self.position_embedding_type = position_embedding_type or getattr(
             config, "position_embedding_type", "absolute"
@@ -291,13 +271,11 @@ class BertSelfAttention(nn.Module):
     def transpose_for_scores(self, x: torch.Tensor) -> torch.Tensor:
         new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
-        y=x.permute(0, 2, 1, 3)
-        
         return x.permute(0, 2, 1, 3)
 
     def forward(
         self,
-        hidden_states: torch.Tensor, #the learnable weights of the module
+        hidden_states: torch.Tensor,
         attention_mask: Optional[torch.FloatTensor] = None,
         head_mask: Optional[torch.FloatTensor] = None,
         encoder_hidden_states: Optional[torch.FloatTensor] = None,
@@ -305,17 +283,9 @@ class BertSelfAttention(nn.Module):
         past_key_value: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
         output_attentions: Optional[bool] = False,
     ) -> Tuple[torch.Tensor]:
-        #cahnge #2
-        global fractionsFXP,MinFXP,MaxFXP
-        hidden_states=torch.round(hidden_states*(2**fractionsFXP))/(2**fractionsFXP)
-        hidden_states=torch.clip(hidden_states,min=MinFXP,max=MaxFXP)
+        start_time = time.perf_counter()
         mixed_query_layer = self.query(hidden_states)
-        
-        #change #3
-        
-        mixed_query_layer=torch.round(mixed_query_layer*(2**fractionsFXP))/(2**fractionsFXP)
-        mixed_query_layer=torch.clip(mixed_query_layer,min=MinFXP,max=MaxFXP)
-       
+
         # If this is instantiated as a cross-attention module, the keys
         # and values come from an encoder; the attention mask needs to be
         # such that the encoder's padding tokens are not attended to.
@@ -340,10 +310,7 @@ class BertSelfAttention(nn.Module):
             value_layer = self.transpose_for_scores(self.value(hidden_states))
 
         query_layer = self.transpose_for_scores(mixed_query_layer)
-        
-        query_layer=torch.round(query_layer*(2**fractionsFXP))/(2**fractionsFXP)
-        query_layer=torch.clip(query_layer,min=MinFXP,max=MaxFXP)
-        
+
         use_cache = past_key_value is not None
         if self.is_decoder:
             # if cross_attention save Tuple(torch.Tensor, torch.Tensor) of all cross attention key/value_states.
@@ -354,292 +321,9 @@ class BertSelfAttention(nn.Module):
             # can concat previous decoder key/value_states to current projected key/value_states (third "elif" case)
             # if encoder bi-directional self-attention `past_key_value` is always `None`
             past_key_value = (key_layer, value_layer)
-        
-        #############################################################################################
-        #change #4 
-        #Convert Q K V to Fixed point
-    
-        
-        key_layer=torch.round(key_layer*(2**fractionsFXP))/(2**fractionsFXP)
-        key_layer=torch.clip(key_layer,min=MinFXP,max=MaxFXP)
-        #print("key_layer shape ",key_layer.shape)
-        value_layer=torch.round(value_layer*(2**fractionsFXP))/(2**fractionsFXP)
-        value_layer=torch.clip(value_layer,min=MinFXP,max=MaxFXP)
-      
-        
-        
-        #############################################################################################
-        ################MULTI ROUND FILTERING BEGINING###############################################
-        #############################################################################################
-        global Layerno
-        
-        #Multi Round FIltering Approximation
-        # get the  significant bits MSBFirstround
-        global MSBFirstround
-        
-        #get the integer part of the Key
-        key_layer_MSBFirstRound=key_layer/2**MSBFirstround
-        key_layer_MSBFirstRound=torch.trunc(key_layer_MSBFirstRound)
-        #get the fraction part of the Key
-        key_layer_MSBFirstRound_Fractions=key_layer-key_layer_MSBFirstRound
-        #get the integer part of the Query
-        query_layer_MSBFirstRound=query_layer/2**MSBFirstround
-        query_layer_MSBFirstRound=torch.trunc(query_layer_MSBFirstRound)
-        #get the fraction part of the Query
-        query_layer_MSBFirstRound_Fractions=query_layer-query_layer_MSBFirstRound
-      
-        #------------------------------------------------------
-        #compute QKT for the MSB first round -- integers
-        attention_scores_MSBFirstRound = torch.abs(torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2)))
-        #print("INT Att Score",torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2)))
-        Interger_attention_score=attention_scores_MSBFirstRound 
-        
-        #print("query_layer_MSBFirstRound[0][0]",query_layer_MSBFirstRound[0][0].shape)
-        
-        # tolbaVal=torch.matmul(query_layer_MSBFirstRound[0][0], key_layer_MSBFirstRound.transpose(-1, -2)[0][0])
-        # print(key_layer_MSBFirstRound.transpose(-1, -2)[0][0], file=open('Tolba/KEYTranspose.txt', 'a'))
-        # print(query_layer_MSBFirstRound[0][0], file=open('Tolba/Query.txt', 'a'))
-        # print(tolbaVal, file=open('Tolba/Result.txt', 'a'))
-        
-        attention_scores_MSBFirstRound= torch.abs(attention_scores_MSBFirstRound)
-        
-        attention_scores_MSBFirstRound=torch.round(attention_scores_MSBFirstRound*(2**fractionsFXP))/(2**fractionsFXP)
-        attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
-        
-        # find the mean values for each head of the MSBFirstround-bit attentions
-        #Mean_attention_scores_MSBFirstRound=torch.mean(attention_scores_MSBFirstRound,(2,3),False,dtype=torch.float32)
-        #print("attention_scores_MSBFirstRound shape",attention_scores_MSBFirstRound.shape)
-        
-        Mean_attention_scores_MSBFirstRound=torch.sum(attention_scores_MSBFirstRound,(2,3))
-        #print("Mean_attention_scores_MSBFirstRound shape",Mean_attention_scores_MSBFirstRound.shape)
-        #print("sum of abs tensor",Mean_attention_scores_MSBFirstRound)
-        #print("Mean_attention_scores_MSBFirstRound",Mean_attention_scores_MSBFirstRound)
-        #define theta for each layer, and prune the heads that are less than this theta
-        #print("THETA 6 MSB")
-        thetaL0=220
-        thetaL1=220
-        thetaL2=220
-        thetaL3=220
-        thetaL4=220
-        thetaL5=220
-        thetaL6=220
-        thetaL7=220
-        thetaL8=220
-        thetaL9=220
-        thetaL10=220
-        thetaL11=220
-        listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
-        global  Layerno       
-        if(Layerno%12==0):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL0:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    
-                    print("deleted in L ", Layerno%12)
-             
-        if(Layerno%12==1):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL1:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==2):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL2:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==3):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL3:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==4):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL4:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==5):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL5:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==6):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL6:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==7):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL7:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==8):
-           for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL8:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==9):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL9:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==10):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL10:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==11):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL11:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    print("deleted in L ", Layerno%12)
-        
-        Layerno=Layerno+1
-        
-        
-        int_att_scores=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
-        First_Frac_att_score=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
-        Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
-        Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
-        
-        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score#+Third_Frac_att_score
-        
-        #print("FirstRoundAtt",FirstRoundAtt);
-        attention_scores=FirstRoundAtt
-        #attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruction, comment it to check round original MRF
-        shape=attention_scores.shape
-        attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
-        attention_scores=torch.clip(attention_scores,min=MinFXP,max=MaxFXP)
-        
-        
-        
-        # Take the dot product between "query" and "key" to get the raw attention scores.
-        #####attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))########This is very important  Instruvtion, comment it to check round original MRF
-        # #find the mean values for each head of the MSBFirstround-bit attentions
-        # Mean_attention_scores=torch.mean(attention_scores,(2,3),False,dtype=torch.float32)
-        # Mean_attention_scores=torch.abs(Mean_attention_scores)
 
-        
-        
-        # print("mean of attentions in layer no",Layerno%12,Mean_attention_scores)
-        # find mean for a specicif head in a specific layer 
-        # in the output file I will take all layer 0 head 0 and computer the mean for them.
-        # #FInd the mean of each layer
-        # in the output file I will take all layer 0 heads and computer the mean for them.
-        # if(Layerno%12==0):
-            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer0.txt', 'a'))
-        # if(Layerno%12==1):
-            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer1.txt', 'a'))
-        # if(Layerno%12==2):
-            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer2.txt', 'a'))
-        # if(Layerno%12==3):
-            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer3.txt', 'a'))
-        # if(Layerno%12==4):
-            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer4.txt', 'a'))
-        # if(Layerno%12==5):
-            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer5.txt', 'a'))
-        # if(Layerno%12==6):
-            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer6.txt', 'a'))
-        # if(Layerno%12==7):
-            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer7.txt', 'a'))
-        # if(Layerno%12==8):
-            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer8.txt', 'a'))
-        # if(Layerno%12==9):
-            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer9.txt', 'a'))
-        # if(Layerno%12==10):
-            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer10.txt', 'a'))
-        # if(Layerno%12==11):
-            # print(Layerno%12,Mean_attention_scores, file=open('SQuAD Statiscics/meansPerLayer/meansperLayer11.txt', 'a'))
-        #-----------------------------------------------------------------------------------------------------------------------------------
-        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][0], file=open('meanL0.txt', 'a'))
-        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][1], file=open('meanL1.txt', 'a'))
-        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][2], file=open('meanL2.txt', 'a'))
-        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][3], file=open('meanL3.txt', 'a'))
-        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][4], file=open('meanL4.txt', 'a'))
-        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][5], file=open('meanL5.txt', 'a'))
-        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][6], file=open('meanL6.txt', 'a'))
-        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][7], file=open('meanL7.txt', 'a'))
-        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][8], file=open('meanL8.txt', 'a'))
-        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][9], file=open('meanL9.txt', 'a'))
-        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][10], file=open('meanL10.txt', 'a'))
-        # print('mean of attentions in layer no',Layerno%12,Mean_attention_scores[0][11], file=open('meanL11.txt', 'a'))
-        #--------------------------------------------------------------------------------------------------------------------------------
-        #print the integer attention values.
-        # if(Layerno%12==0):
-        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer0.txt', 'a'))
-        # if(Layerno%12==1):
-        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer1.txt', 'a'))
-        # if(Layerno%12==2):
-        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer2.txt', 'a'))
-        # if(Layerno%12==3):
-        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer3.txt', 'a'))
-        # if(Layerno%12==4):
-        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer4.txt', 'a'))
-        # if(Layerno%12==5):
-        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer5.txt', 'a'))
-        # if(Layerno%12==6):
-        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer6.txt', 'a'))
-        # if(Layerno%12==7):
-        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer7.txt', 'a'))
-        # if(Layerno%12==8):
-        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer8.txt', 'a'))
-        # if(Layerno%12==9):
-        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer9.txt', 'a'))
-        # if(Layerno%12==10):
-        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer10.txt', 'a'))
-        # if(Layerno%12==11):
-        #     print(Layerno%12,Interger_attention_score, file=open('SQuAD Statiscics/attentionPerLayer/attperLayer11.txt', 'a'))
-        
-       #change #5
-        
-       
+        # Take the dot product between "query" and "key" to get the raw attention scores.
+        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
 
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
@@ -664,19 +348,13 @@ class BertSelfAttention(nn.Module):
                 attention_scores = attention_scores + relative_position_scores_query + relative_position_scores_key
 
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
-        
-        #change # 6
-        
-        attention_scores=torch.round(attention_scores*(2**fractionsFXP))/(2**fractionsFXP)
-        attention_scores=torch.clip(attention_scores,min=MinFXP,max=MaxFXP)
-        
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
             attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
         attention_probs = nn.functional.softmax(attention_scores, dim=-1)
-        
+
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
         attention_probs = self.dropout(attention_probs)
@@ -686,22 +364,20 @@ class BertSelfAttention(nn.Module):
             attention_probs = attention_probs * head_mask
 
         context_layer = torch.matmul(attention_probs, value_layer)
-        
-        #change #7
-        
-        context_layer=torch.round(context_layer*(2**fractionsFXP))/(2**fractionsFXP)
-        context_layer=torch.clip(context_layer,min=MinFXP,max=MaxFXP)
-        
+
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(new_context_layer_shape)
-        
+
         outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
 
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
-        
-        
+        global total_time
+        end_time = time.perf_counter()
+        total_time += (end_time - start_time)
+
+        print(f"Total time for attention operation over 144 runs: {total_time} seconds")
         return outputs
 
 
@@ -713,39 +389,18 @@ class BertSelfOutput(nn.Module):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
-        #change 8
-        global fractionsFXP,MinFXP,MaxFXP
-        hidden_states=torch.round(hidden_states*(2**fractionsFXP))/(2**fractionsFXP)
-        hidden_states=torch.clip(hidden_states,min=MinFXP,max=MaxFXP)
-        
-        #change 9
-        input_tensor=torch.round(input_tensor*(2**fractionsFXP))/(2**fractionsFXP)
-        input_tensor=torch.clip(input_tensor,min=MinFXP,max=MaxFXP)
-        
         hidden_states = self.dense(hidden_states)
-        #change 10
-        hidden_states=torch.round(hidden_states*(2**fractionsFXP))/(2**fractionsFXP)
-        hidden_states=torch.clip(hidden_states,min=MinFXP,max=MaxFXP)
-        
         hidden_states = self.dropout(hidden_states)
-        
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
-        #change 11
-        hidden_states=torch.round(hidden_states*(2**fractionsFXP))/(2**fractionsFXP)
-        hidden_states=torch.clip(hidden_states,min=MinFXP,max=MaxFXP)
-        
-        #####################
         return hidden_states
 
 
 class BertAttention(nn.Module):
     def __init__(self, config, position_embedding_type=None):
         super().__init__()
-       
         self.self = BertSelfAttention(config, position_embedding_type=position_embedding_type)
         self.output = BertSelfOutput(config)
         self.pruned_heads = set()
-        
 
     def prune_heads(self, heads):
         if len(heads) == 0:
@@ -799,24 +454,8 @@ class BertIntermediate(nn.Module):
             self.intermediate_act_fn = config.hidden_act
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        #change 12
-        global fractionsFXP,MinFXP,MaxFXP
-        hidden_states=torch.round(hidden_states*(2**fractionsFXP))/(2**fractionsFXP)
-        hidden_states=torch.clip(hidden_states,min=MinFXP,max=MaxFXP)
-        
-        
         hidden_states = self.dense(hidden_states)
-        #change 13
-        
-        hidden_states=torch.round(hidden_states*(2**fractionsFXP))/(2**fractionsFXP)
-        hidden_states=torch.clip(hidden_states,min=MinFXP,max=MaxFXP)
-        
         hidden_states = self.intermediate_act_fn(hidden_states)
-        #change 14
-        
-        hidden_states=torch.round(hidden_states*(2**fractionsFXP))/(2**fractionsFXP)
-        hidden_states=torch.clip(hidden_states,min=MinFXP,max=MaxFXP)
-        
         return hidden_states
 
 
@@ -828,29 +467,15 @@ class BertOutput(nn.Module):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
-        #change 15
-        global fractionsFXP,MinFXP,MaxFXP
-        hidden_states=torch.round(hidden_states*(2**fractionsFXP))/(2**fractionsFXP)
-        hidden_states=torch.clip(hidden_states,min=MinFXP,max=MaxFXP)
-        
-        
         hidden_states = self.dense(hidden_states)
-        #change 16
-        hidden_states=torch.round(hidden_states*(2**fractionsFXP))/(2**fractionsFXP)
-        hidden_states=torch.clip(hidden_states,min=MinFXP,max=MaxFXP)
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
-        #change 17
-        hidden_states=torch.round(hidden_states*(2**fractionsFXP))/(2**fractionsFXP)
-        hidden_states=torch.clip(hidden_states,min=MinFXP,max=MaxFXP)
-        
         return hidden_states
 
 
 class BertLayer(nn.Module):
     def __init__(self, config):
         super().__init__()
-        
         self.chunk_size_feed_forward = config.chunk_size_feed_forward
         self.seq_len_dim = 1
         self.attention = BertAttention(config)
@@ -937,7 +562,6 @@ class BertLayer(nn.Module):
 class BertEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
-        
         self.config = config
         self.layer = nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
@@ -975,20 +599,15 @@ class BertEncoder(nn.Module):
             past_key_value = past_key_values[i] if past_key_values is not None else None
 
             if self.gradient_checkpointing and self.training:
-
-                def create_custom_forward(module):
-                    def custom_forward(*inputs):
-                        return module(*inputs, past_key_value, output_attentions)
-
-                    return custom_forward
-
-                layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module),
+                layer_outputs = self._gradient_checkpointing_func(
+                    layer_module.__call__,
                     hidden_states,
                     attention_mask,
                     layer_head_mask,
                     encoder_hidden_states,
                     encoder_attention_mask,
+                    past_key_value,
+                    output_attentions,
                 )
             else:
                 layer_outputs = layer_module(
@@ -1044,15 +663,7 @@ class BertPooler(nn.Module):
         # to the first token.
         first_token_tensor = hidden_states[:, 0]
         pooled_output = self.dense(first_token_tensor)
-        #change 20
-        global fractionsFXP,MinFXP,MaxFXP
-        pooled_output=torch.round(pooled_output*(2**fractionsFXP))/(2**fractionsFXP)
-        pooled_output=torch.clip(pooled_output,min=MinFXP,max=MaxFXP)
-        
         pooled_output = self.activation(pooled_output)
-        #change 21
-        pooled_output=torch.round(pooled_output*(2**fractionsFXP))/(2**fractionsFXP)
-        pooled_output=torch.clip(pooled_output,min=MinFXP,max=MaxFXP)
         return pooled_output
 
 
@@ -1070,10 +681,6 @@ class BertPredictionHeadTransform(nn.Module):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.transform_act_fn(hidden_states)
         hidden_states = self.LayerNorm(hidden_states)
-        #change 22
-        global fractionsFXP,MinFXP,MaxFXP
-        pooled_output=torch.round(pooled_output*(2**fractionsFXP))/(2**fractionsFXP)
-        pooled_output=torch.clip(pooled_output,min=MinFXP,max=MaxFXP)
         return hidden_states
 
 
@@ -1139,9 +746,8 @@ class BertPreTrainedModel(PreTrainedModel):
     load_tf_weights = load_tf_weights_in_bert
     base_model_prefix = "bert"
     supports_gradient_checkpointing = True
-    
+
     def _init_weights(self, module):
-        
         """Initialize the weights"""
         if isinstance(module, nn.Linear):
             # Slightly different from the TF version which uses truncated_normal for initialization
@@ -1156,10 +762,6 @@ class BertPreTrainedModel(PreTrainedModel):
         elif isinstance(module, nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, BertEncoder):
-            module.gradient_checkpointing = value
 
 
 @dataclass
@@ -1194,7 +796,7 @@ class BertForPreTrainingOutput(ModelOutput):
     seq_relationship_logits: torch.FloatTensor = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
     attentions: Optional[Tuple[torch.FloatTensor]] = None
-    
+
 
 BERT_START_DOCSTRING = r"""
 
@@ -1278,12 +880,11 @@ class BertModel(BertPreTrainedModel):
     to `True`. To be used in a Seq2Seq model, the model needs to initialized with both `is_decoder` argument and
     `add_cross_attention` set to `True`; an `encoder_hidden_states` is then expected as an input to the forward pass.
     """
-    
-    
+
     def __init__(self, config, add_pooling_layer=True):
         super().__init__(config)
         self.config = config
-        
+
         self.embeddings = BertEmbeddings(config)
         self.encoder = BertEncoder(config)
 
@@ -1291,7 +892,7 @@ class BertModel(BertPreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
-        
+
     def get_input_embeddings(self):
         return self.embeddings.word_embeddings
 
@@ -1455,7 +1056,7 @@ class BertForPreTraining(BertPreTrainedModel):
 
     def __init__(self, config):
         super().__init__(config)
-        
+
         self.bert = BertModel(config)
         self.cls = BertPreTrainingHeads(config)
 
@@ -1678,7 +1279,16 @@ class BertLMHeadModel(BertPreTrainedModel):
 
         # cut decoder_input_ids if past_key_values is used
         if past_key_values is not None:
-            input_ids = input_ids[:, -1:]
+            past_length = past_key_values[0][0].shape[2]
+
+            # Some generation methods already pass only the last input ID
+            if input_ids.shape[1] > past_length:
+                remove_prefix_length = past_length
+            else:
+                # Default to old behavior: keep only final ID
+                remove_prefix_length = input_ids.shape[1] - 1
+
+            input_ids = input_ids[:, remove_prefix_length:]
 
         return {
             "input_ids": input_ids,
@@ -1690,7 +1300,9 @@ class BertLMHeadModel(BertPreTrainedModel):
     def _reorder_cache(self, past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
+            reordered_past += (
+                tuple(past_state.index_select(0, beam_idx.to(past_state.device)) for past_state in layer_past),
+            )
         return reordered_past
 
 
