@@ -420,7 +420,7 @@ class BertSelfAttention(nn.Module):
         #print("THETA 6 MSB")
         global TotalNumOfHeads
         global RemovedHeads
-        thresholdVal=220
+        thresholdVal=300
         thetaL0=thresholdVal
         thetaL1=thresholdVal
         thetaL2=thresholdVal
