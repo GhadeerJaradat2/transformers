@@ -567,7 +567,7 @@ class BertSelfAttention(nn.Module):
         Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
         Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         
-        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score#+Third_Frac_att_score
+        FirstRoundAtt=int_att_scores+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
         
         #print("FirstRoundAtt",FirstRoundAtt);
         attention_scores=FirstRoundAtt
