@@ -422,6 +422,7 @@ class BertSelfAttention(nn.Module):
         #print("THETA 6 MSB")
         global TotalNumOfHeads
         global RemovedHeads
+        
         thresholdVal=1500
         thetaL0=thresholdVal
         thetaL1=thresholdVal
@@ -438,7 +439,7 @@ class BertSelfAttention(nn.Module):
         listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
         global  Layerno   
         N=query_layer_MSBFirstRound_Fractions.shape[2]
-        TotalNumOfHeads=TotalNumOfHeads+12*(N*N)
+        TotalNumOfHeads=TotalNumOfHeads+12
         if(Layerno%12==0):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL0:
@@ -447,7 +448,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
                     listzeromean[i]=0
-                    RemovedHeads=RemovedHeads+(N*N)
+                    RemovedHeads=RemovedHeads+1
                     print("deleted in L ", Layerno%12)
              
         if(Layerno%12==1):
@@ -458,7 +459,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
                     listzeromean[i]=0
-                    RemovedHeads=RemovedHeads+(N*N)
+                    RemovedHeads=RemovedHeads+1
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==2):
             for i in range(12):
@@ -468,7 +469,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
                     listzeromean[i]=0
-                    RemovedHeads=RemovedHeads+(N*N)
+                    RemovedHeads=RemovedHeads+1
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==3):
             for i in range(12):
@@ -478,7 +479,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
                     listzeromean[i]=0
-                    RemovedHeads=RemovedHeads+(N*N)
+                    RemovedHeads=RemovedHeads+1
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==4):
             for i in range(12):
@@ -488,7 +489,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
                     listzeromean[i]=0
-                    RemovedHeads=RemovedHeads+(N*N)
+                    RemovedHeads=RemovedHeads+1
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==5):
             for i in range(12):
@@ -507,8 +508,8 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    listzeromean[i]=0
-                    RemovedHeads=RemovedHeads+(N*N)
+                    listzeromean[i]=01
+                    RemovedHeads=RemovedHeads+1
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==7):
             for i in range(12):
@@ -518,7 +519,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
                     listzeromean[i]=0
-                    RemovedHeads=RemovedHeads+(N*N)
+                    RemovedHeads=RemovedHeads+1
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==8):
            for i in range(12):
@@ -528,7 +529,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
                     listzeromean[i]=0
-                    RemovedHeads=RemovedHeads+(N*N)
+                    RemovedHeads=RemovedHeads+1
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==9):
             for i in range(12):
@@ -538,7 +539,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
                     listzeromean[i]=0
-                    RemovedHeads=RemovedHeads+(N*N)
+                    RemovedHeads=RemovedHeads+1
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==10):
             for i in range(12):
@@ -548,7 +549,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
                     listzeromean[i]=0
-                    RemovedHeads=RemovedHeads+(N*N)
+                    RemovedHeads=RemovedHeads+1
                     print("deleted in L ", Layerno%12)
         if(Layerno%12==11):
             for i in range(12):
@@ -557,7 +558,7 @@ class BertSelfAttention(nn.Module):
                     query_layer_MSBFirstRound[0][i]=0
                     query_layer_MSBFirstRound_Fractions[0][i]=0
                     value_layer[0][i]=0
-                    RemovedHeads=RemovedHeads+(N*N)
+                    RemovedHeads=RemovedHeads+1
                     listzeromean[i]=0
                     print("deleted in L ", Layerno%12)
         
