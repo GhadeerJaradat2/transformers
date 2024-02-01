@@ -30,8 +30,9 @@ import os
 import warnings
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
-torch.set_printoptions(threshold=1000_000)
+
 import torch
+torch.set_printoptions(threshold=1000_000)
 import torch.utils.checkpoint
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
