@@ -420,7 +420,7 @@ class BertSelfAttention(nn.Module):
         #print("THETA 6 MSB")
         global TotalNumOfHeads
         global RemovedHeads
-        thresholdVal=10000
+        thresholdVal=1500
         thetaL0=thresholdVal
         thetaL1=thresholdVal
         thetaL2=thresholdVal
@@ -436,37 +436,37 @@ class BertSelfAttention(nn.Module):
         listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
         global  Layerno   
         TotalNumOfHeads=TotalNumOfHeads+12
-        if(Layerno%12==0):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL0:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    RemovedHeads=RemovedHeads+1
-                    print("deleted in L ", Layerno%12)
+        # if(Layerno%12==0):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL0:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             listzeromean[i]=0
+        #             RemovedHeads=RemovedHeads+1
+        #             print("deleted in L ", Layerno%12)
              
-        if(Layerno%12==1):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL1:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    RemovedHeads=RemovedHeads+1
-                    print("deleted in L ", Layerno%12)
-        if(Layerno%12==2):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thetaL2:
-                    query_layer[0][i]=0
-                    query_layer_MSBFirstRound[0][i]=0
-                    query_layer_MSBFirstRound_Fractions[0][i]=0
-                    value_layer[0][i]=0
-                    listzeromean[i]=0
-                    RemovedHeads=RemovedHeads+1
-                    print("deleted in L ", Layerno%12)
+        # if(Layerno%12==1):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL1:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             listzeromean[i]=0
+        #             RemovedHeads=RemovedHeads+1
+        #             print("deleted in L ", Layerno%12)
+        # if(Layerno%12==2):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thetaL2:
+        #             query_layer[0][i]=0
+        #             query_layer_MSBFirstRound[0][i]=0
+        #             query_layer_MSBFirstRound_Fractions[0][i]=0
+        #             value_layer[0][i]=0
+        #             listzeromean[i]=0
+        #             RemovedHeads=RemovedHeads+1
+        #             print("deleted in L ", Layerno%12)
         if(Layerno%12==3):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thetaL3:
