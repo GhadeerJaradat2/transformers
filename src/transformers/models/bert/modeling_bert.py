@@ -394,7 +394,7 @@ class BertSelfAttention(nn.Module):
         #------------------------------------------------------
         #compute QKT for the MSB first round -- integers
         attention_scores_MSBFirstRound = torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
-        print("attention_scores_MSBFirstRound",attention_scores_MSBFirstRound)
+        # print("attention_scores_MSBFirstRound",attention_scores_MSBFirstRound)
         #print("INT Att Score",torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2)))
         Interger_attention_score=attention_scores_MSBFirstRound 
         
