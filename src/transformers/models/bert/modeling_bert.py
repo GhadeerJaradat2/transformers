@@ -35,7 +35,10 @@ import torch
 import torch.utils.checkpoint
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-
+if torch.cuda.is_available():
+    device= torch.device("cuda")
+else:
+    device = torch.device('cpu')
 from ...activations import ACT2FN
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
@@ -456,6 +459,10 @@ class BertSelfAttention(nn.Module):
 
         # Apply the 2D convolution with stride 4
         # Set groups equal to the number of channels to apply convolution independently per channel
+   
+        
+
+        
         PaddedTensor=PaddedTensor.to(device)
         sum_tensor = torch.nn.functional.conv2d(PaddedTensor, kernel, stride=kernel_size, groups=12)#has the summation for each block
         
