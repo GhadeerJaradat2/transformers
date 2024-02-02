@@ -476,7 +476,8 @@ class BertSelfAttention(nn.Module):
         BlockThresholdVal=30
         ThresholdTensor=torch.full((1,sumShape[1],sumShape[2],sumShape[3]), BlockThresholdVal)
         #subtract from the threshold
-        SubtractTensor = torch.sub(sum_tensor, ThresholdTensor).to(device)
+        SubtractTensor = torch.sub(sum_tensor, ThresholdTensor)
+        SubtractTensor = SubtractTensor.to(device)
         #print("SubtractTensor",SubtractTensor)
         #Delete if vals in SubtractTensor  < threshold
         torch.nn.functional.relu(SubtractTensor, inplace=True)
@@ -494,8 +495,10 @@ class BertSelfAttention(nn.Module):
         #----------------------------------
         #broadcast the values to match the initial shape of the  PaddedTensor
 
-        f1=torch.repeat_interleave(SubtractTensor, torch.tensor([kernel_size]), dim=3).to(device)
-        f2=torch.repeat_interleave(f1, torch.tensor([kernel_size]), dim=2).to(device)
+        f1=torch.repeat_interleave(SubtractTensor, torch.tensor([kernel_size]), dim=3)
+        f1=f1.to(device)
+        f2=torch.repeat_interleave(f1, torch.tensor([kernel_size]), dim=2)
+        f2=f2.to(device)
         #print("repeat_interleave Tensor",f2) 
         zero_indices = f2 == 0
         PaddedTensor[zero_indices] = 0
