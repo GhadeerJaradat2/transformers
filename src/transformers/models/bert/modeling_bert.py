@@ -464,6 +464,7 @@ class BertSelfAttention(nn.Module):
 
         
         PaddedTensor=PaddedTensor.to(device)
+        kernel=kernel.to(device)
         sum_tensor = torch.nn.functional.conv2d(PaddedTensor, kernel, stride=kernel_size, groups=12)#has the summation for each block
         
         sum_tensor=sum_tensor.to(device)
