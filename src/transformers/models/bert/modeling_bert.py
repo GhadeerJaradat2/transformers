@@ -476,7 +476,7 @@ class BertSelfAttention(nn.Module):
         BlockThresholdVal=30
         ThresholdTensor=torch.full((1,sumShape[1],sumShape[2],sumShape[3]), BlockThresholdVal)
         #subtract from the threshold
-        SubtractTensor = torch.sub(sum_tensor, ThresholdTensor)
+        SubtractTensor = torch.sub(sum_tensor.to(device), ThresholdTensor.to(device))
         SubtractTensor = SubtractTensor.to(device)
         #print("SubtractTensor",SubtractTensor)
         #Delete if vals in SubtractTensor  < threshold
