@@ -453,7 +453,7 @@ class BertSelfAttention(nn.Module):
         #-----------------------------------------------------
         #To find the summation for the block pruning
         # Create a kernel filled with ones for summing up 4x4 blocks
-        kernel_size = 4
+        kernel_size = 2
         # Adjust the kernel to have the same number of channels as the tensor
         kernel = torch.ones((12, 1, kernel_size, kernel_size))
 
@@ -473,7 +473,7 @@ class BertSelfAttention(nn.Module):
         sumShape=sum_tensor.shape
         
         #Define the threshold for the block pruning
-        BlockThresholdVal=100
+        BlockThresholdVal=50
         ThresholdTensor=torch.full((1,sumShape[1],sumShape[2],sumShape[3]), BlockThresholdVal)
         #subtract from the threshold
         SubtractTensor = torch.sub(sum_tensor.to(device), ThresholdTensor.to(device))
