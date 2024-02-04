@@ -35,7 +35,10 @@ import torch
 import torch.utils.checkpoint
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-
+if torch.cuda.is_available():
+    device= torch.device("cuda")
+else:
+    device = torch.device('cpu')
 from ...activations import ACT2FN
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
@@ -443,6 +446,7 @@ class BertSelfAttention(nn.Module):
 
         # Use F.pad for padding
         PaddedTensor = torch.nn.functional.pad(attention_scores_MSBFirstRound, padding, "constant", 0)
+        PaddedTensor=PaddedTensor.to(device)
         #print("Padded attention_scores_MSBFirstRound",PaddedTensor)
         #Find the summation of the (abolute of int*int result) of th For the whole tensor --For head Pruning       
         Mean_attention_scores_MSBFirstRound=torch.sum(PaddedTensor,(2,3))
@@ -453,10 +457,11 @@ class BertSelfAttention(nn.Module):
         kernel_size = 2
         # Adjust the kernel to have the same number of channels as the tensor
         kernel = torch.ones((12, 1, kernel_size, kernel_size))
-
+        kernel_size=kernel_size.to(device)
         # Apply the 2D convolution with stride 4
         # Set groups equal to the number of channels to apply convolution independently per channel
         sum_tensor = torch.nn.functional.conv2d(PaddedTensor, kernel, stride=kernel_size, groups=12)#has the summation for each block
+        sum_tensor=sum_tensor.to(device)
         #print("sum_tensor",sum_tensor)
         #------------------------------------------------------------
         sumShape=sum_tensor.shape
