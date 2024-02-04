@@ -473,7 +473,7 @@ class BertSelfAttention(nn.Module):
         sumShape=sum_tensor.shape
         
         #Define the threshold for the block pruning
-        BlockThresholdVal=250
+        BlockThresholdVal=200
         ThresholdTensor=torch.full((1,sumShape[1],sumShape[2],sumShape[3]), BlockThresholdVal)
         #subtract from the threshold
         SubtractTensor = torch.sub(sum_tensor.to(device), ThresholdTensor.to(device))
