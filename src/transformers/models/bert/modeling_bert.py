@@ -665,7 +665,7 @@ class BertSelfAttention(nn.Module):
                     print("deleted in L ", Layerno%12)
         
         Layerno=Layerno+1
-        print("TotalNumOfconnections", TotalNumOfconnections,"       Removedconnections", Removedconnections) 
+        # print("TotalNumOfconnections", TotalNumOfconnections,"       Removedconnections", Removedconnections) 
        
         
         # int_att_scores=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
