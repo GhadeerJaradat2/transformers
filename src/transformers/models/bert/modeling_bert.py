@@ -453,7 +453,7 @@ class BertSelfAttention(nn.Module):
         #-----------------------------------------------------
         #To find the summation for the block pruning
         # Create a kernel filled with ones for summing up 4x4 blocks
-        kernel_size = 4
+        kernel_size = 2
         # Adjust the kernel to have the same number of channels as the tensor
         kernel = torch.ones((12, 1, kernel_size, kernel_size))
 
