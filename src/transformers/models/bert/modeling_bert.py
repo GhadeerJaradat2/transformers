@@ -473,7 +473,7 @@ class BertSelfAttention(nn.Module):
         sumShape=sum_tensor.shape
         
         #Define the threshold for the block pruning
-        BlockThresholdVal=150
+        BlockThresholdVal=250
         ThresholdTensor=torch.full((1,sumShape[1],sumShape[2],sumShape[3]), BlockThresholdVal)
         #subtract from the threshold
         SubtractTensor = torch.sub(sum_tensor.to(device), ThresholdTensor.to(device))
@@ -673,7 +673,7 @@ class BertSelfAttention(nn.Module):
         # Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
         # Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         
-        FirstRoundAtt=Interger_attention_score+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
+        FirstRoundAtt=Interger_attention_score+First_Frac_att_score+Second_Frac_att_score#+Third_Frac_att_score
         
         #print("FirstRoundAtt",FirstRoundAtt);
         attention_scores=FirstRoundAtt
