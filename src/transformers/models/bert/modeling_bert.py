@@ -500,9 +500,9 @@ class BertSelfAttention(nn.Module):
         #----------------------------------
         #broadcast the values to match the initial shape of the  PaddedTensor
 
-        f1=torch.repeat_interleave(sum_tensor, torch.tensor([kernel_size]), dim=3)
+        f1=torch.repeat_interleave(sum_tensor.to(device), torch.tensor([kernel_size].to(device)), dim=3)
         f1=f1.to(device)
-        f2=torch.repeat_interleave(f1, torch.tensor([kernel_size]), dim=2)
+        f2=torch.repeat_interleave(f1, torch.tensor([kernel_size].to(device)), dim=2)
         f2=f2.to(device)
         #print("repeat_interleave Tensor",f2) 
         zero_indices = f2 == 0
