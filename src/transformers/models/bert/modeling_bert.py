@@ -15,6 +15,7 @@
 # limitations under the License.
 """PyTorch BERT model."""
 # For using 16 bit fixed point representation, Q2.13 is suffecient, Max=3.999879, Min=-4
+Pruning_Ratio=0
 alph=-0.5#{ -1--> 0% pruning ratio, 0--> 50%, 1-->100%, -0.5-->25%,.5-->75%}
 Layerno=0
 MaxFXP=127.99609375#Max value for fixed point representation
@@ -388,7 +389,7 @@ class BertSelfAttention(nn.Module):
         #Multi Round FIltering Approximation
         # get the  significant bits MSBFirstround
         global MSBFirstround
-        
+        global Pruning_Ratio
         #get the integer part of the Key
         key_layer_MSBFirstRound=key_layer/2**MSBFirstround
         key_layer_MSBFirstRound=torch.trunc(key_layer_MSBFirstRound)
@@ -475,7 +476,7 @@ class BertSelfAttention(nn.Module):
         #Define the N:M ratio[1:2-->50%, 3:4-->75%, 7:8-->87.5%] for the block pruning
         M=sumShape[2]
         #Define N to achieve [0%-->N=M,50%--> N=M//2 , 75%, N=( M + 3) // 4, 87.5%, --> N=( M + 7) // 8
-        k =math.ceil(M * (1 - self.PruningRation)) 
+        k =math.ceil(M * (1 - Pruning_Ratio)) 
         
         
         values, indices = torch.topk(sum_tensor, k=k, dim=3, largest=True)    
