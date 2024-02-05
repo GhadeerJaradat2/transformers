@@ -994,8 +994,8 @@ class BertLayer(nn.Module):
         self.intermediate = BertIntermediate(config)
         self.output = BertOutput(config)
     def update_PruningRatio(self, new_value):
-        # Update the parameter with the new value
-        BertAttention.update_PruningRatio(new_value)
+        self.pruning_ratio = new_value
+        self.ention.update_PruningRatio(new_value)
         
     def forward(
         self,
