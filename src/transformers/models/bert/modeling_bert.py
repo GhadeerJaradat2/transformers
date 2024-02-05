@@ -292,7 +292,7 @@ class BertSelfAttention(nn.Module):
             self.distance_embedding = nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
 
         self.is_decoder = config.is_decoder
-    @staticmethod
+    
     def update_PruningRatio(self, new_value):
         # Update the parameter with the new value
         self.PruningRation = new_value
@@ -475,7 +475,7 @@ class BertSelfAttention(nn.Module):
         #Define the N:M ratio[1:2-->50%, 3:4-->75%, 7:8-->87.5%] for the block pruning
         M=sumShape[2]
         #Define N to achieve [0%-->N=M,50%--> N=M//2 , 75%, N=( M + 3) // 4, 87.5%, --> N=( M + 7) // 8
-         k =  math.ceil(M * (1 - self.PruningRation)) 
+         k =math.ceil(M * (1 - self.PruningRation)) 
         
         
         values, indices = torch.topk(sum_tensor, k=N, dim=3, largest=True)    
