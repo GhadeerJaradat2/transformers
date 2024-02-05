@@ -868,7 +868,7 @@ class BertSelfOutput(nn.Module):
 
 
 class BertAttention(nn.Module):
-    def __init__(self, config, position_embedding_type=None):
+    def __init__(self, config,PruningRation=None,  position_embedding_type=None):
         super().__init__()
        
         self.self = BertSelfAttention(config, position_embedding_type=position_embedding_type)
@@ -888,12 +888,18 @@ class BertAttention(nn.Module):
         self.self.key = prune_linear_layer(self.self.key, index)
         self.self.value = prune_linear_layer(self.self.value, index)
         self.output.dense = prune_linear_layer(self.output.dense, index, dim=1)
+        
 
+        
         # Update hyper params and store pruned heads
         self.self.num_attention_heads = self.self.num_attention_heads - len(heads)
         self.self.all_head_size = self.self.attention_head_size * self.self.num_attention_heads
         self.pruned_heads = self.pruned_heads.union(heads)
-
+    def update_PruningRatio(self, new_value):
+        # Update the parameter with the new value
+        
+        BertSelfAttention.update_PruningRatio(new_value)
+        print("New Pruning Ratio",new_value)
     def forward(
         self,
         hidden_states: torch.Tensor,
