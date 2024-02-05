@@ -292,7 +292,7 @@ class BertSelfAttention(nn.Module):
             self.distance_embedding = nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
 
         self.is_decoder = config.is_decoder
-
+    @staticmethod
     def update_PruningRatio(self, new_value):
         # Update the parameter with the new value
         self.PruningRation = new_value
