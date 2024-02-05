@@ -799,7 +799,7 @@ class BertSelfAttention(nn.Module):
 
         # Normalize the attention scores to probabilities.
         attention_probs = nn.functional.softmax(attention_scores, dim=-1)
-        zero_indices = SoftmaxResultMAskingTensor == 0
+        #zero_indices = SoftmaxResultMAskingTensor == 0
         attention_probs [zero_indices] = 0
         
         # This is actually dropping out entire tokens to attend to, which might
