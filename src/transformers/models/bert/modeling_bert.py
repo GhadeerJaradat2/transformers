@@ -469,7 +469,7 @@ class BertSelfAttention(nn.Module):
         #Define the N:M ratio[1:2-->50%, 3:4-->75%, 7:8-->87.5%] for the block pruning
         M=sumShape[2]
         #Define N to achieve [0%-->N=M,50%--> N=M//2 , 75%, N=( M + 3) // 4, 87.5%, --> N=( M + 7) // 8
-        N= M // 2 achieve 50% pruning
+        N= M // 2 #to achieve 50% pruning
         
         
         values, indices = torch.topk(sum_tensor, k=N, dim=3, largest=True)    
