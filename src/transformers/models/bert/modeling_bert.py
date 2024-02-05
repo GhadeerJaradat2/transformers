@@ -2056,6 +2056,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.config = config
+        self.pruning_ratio = 0
 
         self.bert = BertModel(config)
         classifier_dropout = (
@@ -2075,6 +2076,9 @@ class BertForSequenceClassification(BertPreTrainedModel):
         expected_output=_SEQ_CLASS_EXPECTED_OUTPUT,
         expected_loss=_SEQ_CLASS_EXPECTED_LOSS,
     )
+    def update_PruningRatio(self, new_value):
+        self.pruning_ratio = new_value
+        self.bert.update_PruningRatio(new_value)
     def forward(
         self,
         input_ids: Optional[torch.Tensor] = None,
