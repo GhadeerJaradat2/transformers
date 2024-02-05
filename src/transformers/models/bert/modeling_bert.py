@@ -877,7 +877,7 @@ class BertAttention(nn.Module):
     def update_PruningRatio(self, new_value):
         # Update the parameter with the new value
         BertSelfAttention.update_PruningRatio(new_value)
-        print("New Pruning Ratio",new_value)   
+          
 
     def prune_heads(self, heads):
         if len(heads) == 0:
@@ -996,7 +996,7 @@ class BertLayer(nn.Module):
     def update_PruningRatio(self, new_value):
         # Update the parameter with the new value
         BertAttention.update_PruningRatio(new_value)
-        print("New Pruning Ratio",new_value)
+        
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -1069,16 +1069,17 @@ class BertLayer(nn.Module):
 
 
 class BertEncoder(nn.Module):
-    def __init__(self, config,PruningRation=None):
+    def __init__(self, config):
         super().__init__()
         self.PruningRation=0,
         self.config = config
         self.layer = nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
     def update_PruningRatio(self, new_value):
-        # Update the parameter with the new value
-        BertLayer.update_PruningRatio(new_value)
-        print("New Pruning Ratio",new_value)
+        self.pruning_ratio = new_value
+        for layer in self.layer:
+            layer.update_PruningRatio(new_value)
+        
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -1417,7 +1418,7 @@ class BertModel(BertPreTrainedModel):
     """
     
     
-    def __init__(self, config, PruningRation=None, add_pooling_layer=True):
+    def __init__(self, config, add_pooling_layer=True):
         super().__init__(config)
         self.config = config
         self.PruningRation=0, 
@@ -1429,9 +1430,9 @@ class BertModel(BertPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
     def update_PruningRatio(self, new_value):
-        # Update the parameter with the new value
-        BertEncoder.update_PruningRatio(new_value)
-        print("New Pruning Ratio",new_value)    
+        self.pruning_ratio = new_value
+        self.encoder.update_PruningRatio(new_value)
+           
     def get_input_embeddings(self):
         return self.embeddings.word_embeddings
 
