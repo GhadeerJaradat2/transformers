@@ -982,10 +982,11 @@ class BertOutput(nn.Module):
 
 
 class BertLayer(nn.Module):
-    def __init__(self, config, PruningRation=None):
+    def __init__(self, config):
         super().__init__()
         self.ention = BertAttention(config)
         self.is_decoder = config.is_decoder
+        self.pruning_ratio=0
         self.add_cross_attention = config.add_cross_attention
         if self.add_cross_attention:
             if not self.is_decoder:
