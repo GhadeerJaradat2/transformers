@@ -875,8 +875,8 @@ class BertAttention(nn.Module):
         self.output = BertSelfOutput(config)
         self.pruned_heads = set()
     def update_PruningRatio(self, new_value):
-        # Update the parameter with the new value
-        BertSelfAttention.update_PruningRatio(new_value)
+        self.pruning_ratio = new_valuee
+        self.self.update_PruningRatio(new_value)
           
 
     def prune_heads(self, heads):
