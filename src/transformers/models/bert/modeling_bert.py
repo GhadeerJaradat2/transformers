@@ -477,13 +477,23 @@ class BertSelfAttention(nn.Module):
         mask = torch.zeros_like(sum_tensor, dtype=torch.bool).to(device)
         #print(mask)
 
-        # Broadcasting indices correctly for a 4D tensor
-        # The broadcasting needs to consider all dimensions except the one we apply topk on
-        B, C, H, W = sum_tensor.shape  # Assuming tensor shape is [Batch, Channels, Height, Width]
-        for b in range(B):
-            for c in range(C):
-                for h in range(H):
-                    mask[b, c, h, indices[b, c, h]] = True
+        # Create a grid for the B, C, H dimensions
+        B, C, H, W = sum_tensor.shape
+        b_grid, c_grid, h_grid = torch.meshgrid(
+            torch.arange(B, device=sum_tensor.device), 
+            torch.arange(C, device=sum_tensor.device), 
+            torch.arange(H, device=sum_tensor.device),
+            indexing='ij'
+        )
+
+        # Expand the grids to match the shape of indices tensor for broadcasting
+        # The shape of indices is [B, C, H, N] where N is the number of top values
+        b_grid_expanded = b_grid.unsqueeze(-1).expand_as(indices)
+        c_grid_expanded = c_grid.unsqueeze(-1).expand_as(indices)
+        h_grid_expanded = h_grid.unsqueeze(-1).expand_as(indices)
+
+        # Use the expanded grids and indices to update the mask
+        mask[b_grid_expanded, c_grid_expanded, h_grid_expanded, indices] = True
         
         # Use the mask to zero out the smallest m values in each row
         sum_tensor[~mask] = 0
