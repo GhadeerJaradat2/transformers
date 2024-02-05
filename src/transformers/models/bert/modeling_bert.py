@@ -478,7 +478,7 @@ class BertSelfAttention(nn.Module):
         k =math.ceil(M * (1 - self.PruningRation)) 
         
         
-        values, indices = torch.topk(sum_tensor, k=N, dim=3, largest=True)    
+        values, indices = torch.topk(sum_tensor, k=k, dim=3, largest=True)    
         #print("values, indices",values, indices)
         mask = torch.zeros_like(sum_tensor, dtype=torch.bool).to(device)
         #print(mask)
