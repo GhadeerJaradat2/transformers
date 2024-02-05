@@ -870,11 +870,14 @@ class BertSelfOutput(nn.Module):
 class BertAttention(nn.Module):
     def __init__(self, config,PruningRation=None,  position_embedding_type=None):
         super().__init__()
-       
+        self.PruningRation=0
         self.self = BertSelfAttention(config, position_embedding_type=position_embedding_type)
         self.output = BertSelfOutput(config)
         self.pruned_heads = set()
-        
+    def update_PruningRatio(self, new_value):
+        # Update the parameter with the new value
+        BertSelfAttention.update_PruningRatio(new_value)
+        print("New Pruning Ratio",new_value)   
 
     def prune_heads(self, heads):
         if len(heads) == 0:
@@ -895,11 +898,7 @@ class BertAttention(nn.Module):
         self.self.num_attention_heads = self.self.num_attention_heads - len(heads)
         self.self.all_head_size = self.self.attention_head_size * self.self.num_attention_heads
         self.pruned_heads = self.pruned_heads.union(heads)
-    def update_PruningRatio(self, new_value):
-        # Update the parameter with the new value
-        
-        BertSelfAttention.update_PruningRatio(new_value)
-        print("New Pruning Ratio",new_value)
+    
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -983,12 +982,9 @@ class BertOutput(nn.Module):
 
 
 class BertLayer(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, PruningRation=None):
         super().__init__()
-        
-        self.chunk_size_feed_forward = config.chunk_size_feed_forward
-        self.seq_len_dim = 1
-        self.attention = BertAttention(config)
+        self.ention = BertAttention(config)
         self.is_decoder = config.is_decoder
         self.add_cross_attention = config.add_cross_attention
         if self.add_cross_attention:
@@ -997,7 +993,10 @@ class BertLayer(nn.Module):
             self.crossattention = BertAttention(config, position_embedding_type="absolute")
         self.intermediate = BertIntermediate(config)
         self.output = BertOutput(config)
-
+    def update_PruningRatio(self, new_value):
+        # Update the parameter with the new value
+        BertAttention.update_PruningRatio(new_value)
+        print("New Pruning Ratio",new_value)
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -1070,13 +1069,16 @@ class BertLayer(nn.Module):
 
 
 class BertEncoder(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config,PruningRation=None):
         super().__init__()
-        
+        self.PruningRation=0,
         self.config = config
         self.layer = nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
-
+    def update_PruningRatio(self, new_value):
+        # Update the parameter with the new value
+        BertLayer.update_PruningRatio(new_value)
+        print("New Pruning Ratio",new_value)
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -1415,10 +1417,10 @@ class BertModel(BertPreTrainedModel):
     """
     
     
-    def __init__(self, config, add_pooling_layer=True):
+    def __init__(self, config, PruningRation=None, add_pooling_layer=True):
         super().__init__(config)
         self.config = config
-        
+        self.PruningRation=0, 
         self.embeddings = BertEmbeddings(config)
         self.encoder = BertEncoder(config)
 
@@ -1426,7 +1428,10 @@ class BertModel(BertPreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
-        
+    def update_PruningRatio(self, new_value):
+        # Update the parameter with the new value
+        BertEncoder.update_PruningRatio(new_value)
+        print("New Pruning Ratio",new_value)    
     def get_input_embeddings(self):
         return self.embeddings.word_embeddings
 
