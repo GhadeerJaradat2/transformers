@@ -15,9 +15,9 @@
 # limitations under the License.
 """PyTorch BERT model."""
 # For using 16 bit fixed point representation, Q2.13 is suffecient, Max=3.999879, Min=-4
-Pruning_Ratio=0
 alph=-0.5#{ -1--> 0% pruning ratio, 0--> 50%, 1-->100%, -0.5-->25%,.5-->75%}
 Layerno=0
+PruningRatio=0
 MaxFXP=127.99609375#Max value for fixed point representation
 MinFXP=-128#Min value for fixed point representation
 fractionsFXP=8 # number of fractions in FXP
@@ -293,10 +293,7 @@ class BertSelfAttention(nn.Module):
             self.distance_embedding = nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
 
         self.is_decoder = config.is_decoder
-    
-  
 
-    
     def transpose_for_scores(self, x: torch.Tensor) -> torch.Tensor:
         new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
@@ -386,7 +383,7 @@ class BertSelfAttention(nn.Module):
         #Multi Round FIltering Approximation
         # get the  significant bits MSBFirstround
         global MSBFirstround
-        global Pruning_Ratio
+        
         #get the integer part of the Key
         key_layer_MSBFirstRound=key_layer/2**MSBFirstround
         key_layer_MSBFirstRound=torch.trunc(key_layer_MSBFirstRound)
@@ -473,7 +470,8 @@ class BertSelfAttention(nn.Module):
         #Define the N:M ratio[1:2-->50%, 3:4-->75%, 7:8-->87.5%] for the block pruning
         M=sumShape[2]
         #Define N to achieve [0%-->N=M,50%--> N=M//2 , 75%, N=( M + 3) // 4, 87.5%, --> N=( M + 7) // 8
-        k =math.ceil(M * (1 - Pruning_Ratio)) 
+        
+        k = math.ceil(M * (1 - PruningRatio))  # Number of elements to keep
         
         
         values, indices = torch.topk(sum_tensor, k=k, dim=3, largest=True)    
@@ -752,7 +750,7 @@ class BertSelfAttention(nn.Module):
         # Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
         # Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         
-        FirstRoundAtt=Interger_attention_score+First_Frac_att_score+Second_Frac_att_score#+Third_Frac_att_score
+        FirstRoundAtt=Interger_attention_score+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
         
         #print("FirstRoundAtt",FirstRoundAtt);
         attention_scores=FirstRoundAtt
@@ -866,14 +864,13 @@ class BertSelfOutput(nn.Module):
 
 
 class BertAttention(nn.Module):
-    def __init__(self, config,  position_embedding_type=None):
+    def __init__(self, config, position_embedding_type=None):
         super().__init__()
-        
+       
         self.self = BertSelfAttention(config, position_embedding_type=position_embedding_type)
         self.output = BertSelfOutput(config)
         self.pruned_heads = set()
-  
-          
+        
 
     def prune_heads(self, heads):
         if len(heads) == 0:
@@ -887,14 +884,12 @@ class BertAttention(nn.Module):
         self.self.key = prune_linear_layer(self.self.key, index)
         self.self.value = prune_linear_layer(self.self.value, index)
         self.output.dense = prune_linear_layer(self.output.dense, index, dim=1)
-        
 
-        
         # Update hyper params and store pruned heads
         self.self.num_attention_heads = self.self.num_attention_heads - len(heads)
         self.self.all_head_size = self.self.attention_head_size * self.self.num_attention_heads
         self.pruned_heads = self.pruned_heads.union(heads)
-    
+
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -980,9 +975,11 @@ class BertOutput(nn.Module):
 class BertLayer(nn.Module):
     def __init__(self, config):
         super().__init__()
+        
+        self.chunk_size_feed_forward = config.chunk_size_feed_forward
+        self.seq_len_dim = 1
         self.attention = BertAttention(config)
         self.is_decoder = config.is_decoder
-        
         self.add_cross_attention = config.add_cross_attention
         if self.add_cross_attention:
             if not self.is_decoder:
@@ -990,8 +987,7 @@ class BertLayer(nn.Module):
             self.crossattention = BertAttention(config, position_embedding_type="absolute")
         self.intermediate = BertIntermediate(config)
         self.output = BertOutput(config)
-   
-        
+
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -1070,8 +1066,7 @@ class BertEncoder(nn.Module):
         self.config = config
         self.layer = nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
- 
-        
+
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -1413,7 +1408,7 @@ class BertModel(BertPreTrainedModel):
     def __init__(self, config, add_pooling_layer=True):
         super().__init__(config)
         self.config = config
-         
+        
         self.embeddings = BertEmbeddings(config)
         self.encoder = BertEncoder(config)
 
@@ -1421,8 +1416,7 @@ class BertModel(BertPreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
-
-           
+        
     def get_input_embeddings(self):
         return self.embeddings.word_embeddings
 
@@ -2046,7 +2040,6 @@ class BertForSequenceClassification(BertPreTrainedModel):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.config = config
-        
 
         self.bert = BertModel(config)
         classifier_dropout = (
@@ -2066,7 +2059,6 @@ class BertForSequenceClassification(BertPreTrainedModel):
         expected_output=_SEQ_CLASS_EXPECTED_OUTPUT,
         expected_loss=_SEQ_CLASS_EXPECTED_LOSS,
     )
- 
     def forward(
         self,
         input_ids: Optional[torch.Tensor] = None,
