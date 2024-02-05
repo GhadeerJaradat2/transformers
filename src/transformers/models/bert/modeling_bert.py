@@ -262,9 +262,9 @@ class BertEmbeddings(nn.Module):
 
 class BertSelfAttention(nn.Module):
     
-    def __init__(self, config, position_embedding_type=None):
+    def __init__(self, config,PruningRation=None, position_embedding_type=None):
         super().__init__()
-        
+        PruningRation=0
         if config.hidden_size % config.num_attention_heads != 0 and not hasattr(config, "embedding_size"):
             raise ValueError(
                 f"The hidden size ({config.hidden_size}) is not a multiple of the number of attention "
@@ -293,6 +293,12 @@ class BertSelfAttention(nn.Module):
 
         self.is_decoder = config.is_decoder
 
+    def update_PruningRatio(self, new_value):
+        # Update the parameter with the new value
+        self.PruningRation = new_value
+        print("New Pruning Ratio",new_value)
+
+    
     def transpose_for_scores(self, x: torch.Tensor) -> torch.Tensor:
         new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
@@ -469,7 +475,7 @@ class BertSelfAttention(nn.Module):
         #Define the N:M ratio[1:2-->50%, 3:4-->75%, 7:8-->87.5%] for the block pruning
         M=sumShape[2]
         #Define N to achieve [0%-->N=M,50%--> N=M//2 , 75%, N=( M + 3) // 4, 87.5%, --> N=( M + 7) // 8
-        N= M // 2 #to achieve 50% pruning
+         k =  math.ceil(M * (1 - self.PruningRation)) 
         
         
         values, indices = torch.topk(sum_tensor, k=N, dim=3, largest=True)    
