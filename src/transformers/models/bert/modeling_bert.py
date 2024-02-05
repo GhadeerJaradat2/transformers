@@ -383,7 +383,7 @@ class BertSelfAttention(nn.Module):
         #Multi Round FIltering Approximation
         # get the  significant bits MSBFirstround
         global MSBFirstround
-        
+        global PruningRatio
         #get the integer part of the Key
         key_layer_MSBFirstRound=key_layer/2**MSBFirstround
         key_layer_MSBFirstRound=torch.trunc(key_layer_MSBFirstRound)
