@@ -984,7 +984,7 @@ class BertOutput(nn.Module):
 class BertLayer(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.ention = BertAttention(config)
+        self.attention = BertAttention(config)
         self.is_decoder = config.is_decoder
         self.pruning_ratio=0
         self.add_cross_attention = config.add_cross_attention
@@ -996,7 +996,7 @@ class BertLayer(nn.Module):
         self.output = BertOutput(config)
     def update_PruningRatio(self, new_value):
         self.pruning_ratio = new_value
-        self.ention.update_PruningRatio(new_value)
+        self.attention.update_PruningRatio(new_value)
         
     def forward(
         self,
