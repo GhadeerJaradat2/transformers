@@ -32,6 +32,7 @@ PruningRatio.PruningRatio=0
 PruningRatio.kernel_size=2
 PruningRatio.approxFlag=0
 PruningRatio.LocalPrune=0
+PruningRatio.HeadPruningThreshold=0
 import math
 import os
 import warnings
@@ -560,7 +561,7 @@ class BertSelfAttention(nn.Module):
         global Removedconnections
         Removedconnections = Removedconnections+NoOfPrunedconnections
         
-        thresholdVal=0
+        thresholdVal=PruningRatio.HeadPruningThreshold
     
         listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
         global  Layerno   
