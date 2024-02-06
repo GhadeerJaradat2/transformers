@@ -564,7 +564,7 @@ class BertSelfAttention(nn.Module):
         global  Layerno   
         
         if(Layerno%shapeBefore[1]==0):
-            for i in range(12):
+            for i in range(shapeBefore[1]):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
                     Interger_attention_score[0][i]=0
@@ -580,7 +580,7 @@ class BertSelfAttention(nn.Module):
                     print("deleted in L ", Layerno%12)
              
         elif(Layerno%shapeBefore[1]==1):
-            for i in range(12):
+            for i in range(shapeBefore[1]):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
                     Interger_attention_score[0][i]=0
@@ -595,7 +595,7 @@ class BertSelfAttention(nn.Module):
                     print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==2):
-            for i in range(12):
+            for i in range(shapeBefore[1]):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
                     Interger_attention_score[0][i]=0
@@ -610,7 +610,7 @@ class BertSelfAttention(nn.Module):
                     print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==3):
-            for i in range(12):
+            for i in range(shapeBefore[1]):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
                     Interger_attention_score[0][i]=0
@@ -625,7 +625,7 @@ class BertSelfAttention(nn.Module):
                     print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==4):
-            for i in range(12):
+            for i in range(shapeBefore[1]):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
                     Interger_attention_score[0][i]=0
@@ -640,7 +640,7 @@ class BertSelfAttention(nn.Module):
                     print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==5):
-            for i in range(12):
+            for i in range(shapeBefore[1]):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
                     Interger_attention_score[0][i]=0
@@ -655,7 +655,7 @@ class BertSelfAttention(nn.Module):
                     print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==6):
-            for i in range(12):
+            for i in range(shapeBefore[1]):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
                     Interger_attention_score[0][i]=0
@@ -670,7 +670,7 @@ class BertSelfAttention(nn.Module):
                     print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==7):
-            for i in range(12):
+            for i in range(shapeBefore[1]):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
                     Interger_attention_score[0][i]=0
@@ -685,7 +685,7 @@ class BertSelfAttention(nn.Module):
                     print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==8):
-           for i in range(12):
+           for i in range(shapeBefore[1]):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
                     Interger_attention_score[0][i]=0
@@ -700,7 +700,7 @@ class BertSelfAttention(nn.Module):
                     print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==9):
-            for i in range(12):
+            for i in range(shapeBefore[1]):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
                     Interger_attention_score[0][i]=0
@@ -715,7 +715,7 @@ class BertSelfAttention(nn.Module):
                     print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==10):
-            for i in range(12):
+            for i in range(shapeBefore[1]):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
                     Interger_attention_score[0][i]=0
@@ -730,7 +730,7 @@ class BertSelfAttention(nn.Module):
                     print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==11):
-            for i in range(12):
+            for i in range(shapeBefore[1]):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
                     Interger_attention_score[0][i]=0
