@@ -16,6 +16,7 @@
 """PyTorch BERT model."""
 # For using 16 bit fixed point representation, Q2.13 is suffecient, Max=3.999879, Min=-4
 alph=-0.5#{ -1--> 0% pruning ratio, 0--> 50%, 1-->100%, -0.5-->25%,.5-->75%}
+kernel_size=2
 Layerno=0
 PruningRatio=0
 MaxFXP=127.99609375#Max value for fixed point representation
@@ -455,6 +456,7 @@ class BertSelfAttention(nn.Module):
         #-----------------------------------------------------
         #To find the summation for the block pruning
         # Create a kernel filled with ones for summing up 4x4 blocks
+        global kernel_size
         kernel_size = 2
         # Adjust the kernel to have the same number of channels as the tensor
         kernel = torch.ones((12, 1, kernel_size, kernel_size))
