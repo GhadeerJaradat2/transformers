@@ -18,7 +18,7 @@
 alph=-0.5#{ -1--> 0% pruning ratio, 0--> 50%, 1-->100%, -0.5-->25%,.5-->75%}
 kernel_size=2
 Layerno=0
-PruningRatio=0
+
 MaxFXP=127.99609375#Max value for fixed point representation
 MinFXP=-128#Min value for fixed point representation
 fractionsFXP=8 # number of fractions in FXP
@@ -27,6 +27,8 @@ layer=0
 Thirdcounter=0
 TotalNumOfconnections=0
 Removedconnections=0
+import PruningRatio
+PruningRatio.PruningRatio=0
 import math
 import os
 import warnings
@@ -384,7 +386,7 @@ class BertSelfAttention(nn.Module):
         #Multi Round FIltering Approximation
         # get the  significant bits MSBFirstround
         global MSBFirstround
-        global PruningRatio
+        
         #get the integer part of the Key
         key_layer_MSBFirstRound=key_layer/2**MSBFirstround
         key_layer_MSBFirstRound=torch.trunc(key_layer_MSBFirstRound)
@@ -472,7 +474,7 @@ class BertSelfAttention(nn.Module):
         #Define the N:M ratio[1:2-->50%, 3:4-->75%, 7:8-->87.5%] for the block pruning
         M=sumShape[2]
         #Define N to achieve [0%-->N=M,50%--> N=M//2 , 75%, N=( M + 3) // 4, 87.5%, --> N=( M + 7) // 8
-        print("PruningRatio",PruningRatio)
+        print("PruningRatio",PruningRatio.PruningRatio)
         k = math.ceil(M * (1 - PruningRatio))  # Number of elements to keep
         
         
