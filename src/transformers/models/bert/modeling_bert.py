@@ -30,6 +30,8 @@ Removedconnections=0
 from transformers.models.bert import PruningRatio
 PruningRatio.PruningRatio=0
 PruningRatio.kernel_size=2
+PruningRatio.approxFlag=0
+PruningRatio.LocalPrune=0
 import math
 import os
 import warnings
@@ -754,8 +756,12 @@ class BertSelfAttention(nn.Module):
         # First_Frac_att_score=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         # Second_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound.transpose(-1, -2))
         # Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
+        if(PruningRatio.approxFlag):
+            FirstRoundAtt=Interger_attention_score+First_Frac_att_score+Second_Frac_att_score
+        else:
+            FirstRoundAtt=Interger_attention_score+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
+
         
-        FirstRoundAtt=Interger_attention_score+First_Frac_att_score+Second_Frac_att_score#+Third_Frac_att_score
         
         #print("FirstRoundAtt",FirstRoundAtt);
         attention_scores=FirstRoundAtt
@@ -804,8 +810,9 @@ class BertSelfAttention(nn.Module):
 
         # Normalize the attention scores to probabilities.
         attention_probs = nn.functional.softmax(attention_scores, dim=-1)
-        #zero_indices = SoftmaxResultMAskingTensor == 0
-        # attention_probs [zero_indices] = 0
+        if (PruningRatio.LocalPrune):
+            zero_indices = SoftmaxResultMAskingTensor == 0
+            attention_probs [zero_indices] = 0
         
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
