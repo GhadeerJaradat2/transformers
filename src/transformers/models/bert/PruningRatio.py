@@ -1,1 +1,1 @@
-PruningRatio=.5
+PruningRatio=.8
