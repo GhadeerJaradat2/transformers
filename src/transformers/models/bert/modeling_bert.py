@@ -16,7 +16,7 @@
 """PyTorch BERT model."""
 # For using 16 bit fixed point representation, Q2.13 is suffecient, Max=3.999879, Min=-4
 alph=-0.5#{ -1--> 0% pruning ratio, 0--> 50%, 1-->100%, -0.5-->25%,.5-->75%}
-kernel_size=2
+
 Layerno=0
 
 MaxFXP=127.99609375#Max value for fixed point representation
@@ -29,6 +29,7 @@ TotalNumOfconnections=0
 Removedconnections=0
 from transformers.models.bert import PruningRatio
 PruningRatio.PruningRatio=0
+PruningRatio.kernel_size=2
 import math
 import os
 import warnings
@@ -458,14 +459,14 @@ class BertSelfAttention(nn.Module):
         #-----------------------------------------------------
         #To find the summation for the block pruning
         # Create a kernel filled with ones for summing up 4x4 blocks
-        global kernel_size
-        kernel_size = 2
+        
+        
         # Adjust the kernel to have the same number of channels as the tensor
-        kernel = torch.ones((shapeBefore[1], 1, kernel_size, kernel_size))
+        kernel = torch.ones((shapeBefore[1], 1, PruningRatio.kernel_size, PruningRatio.kernel_size))
         kernel=kernel.to(device)
         # Apply the 2D convolution with stride 4
         # Set groups equal to the number of channels to apply convolution independently per channel
-        sum_tensor = torch.nn.functional.conv2d(PaddedTensor, kernel, stride=kernel_size, groups=shapeBefore[1])#has the summation for each block
+        sum_tensor = torch.nn.functional.conv2d(PaddedTensor, kernel, stride=PruningRatio.kernel_size, groups=shapeBefore[1])#has the summation for each block
         sum_tensor=sum_tensor.to(device)
         #print("sum_tensor",sum_tensor)
         #------------------------------------------------------------
@@ -516,9 +517,9 @@ class BertSelfAttention(nn.Module):
         #----------------------------------
         #broadcast the values to match the initial shape of the  PaddedTensor
 
-        f1=torch.repeat_interleave(sum_tensor, torch.tensor([kernel_size]).to(device), dim=3)
+        f1=torch.repeat_interleave(sum_tensor, torch.tensor([PruningRatio.kernel_size]).to(device), dim=3)
         f1=f1.to(device)
-        f2=torch.repeat_interleave(f1, torch.tensor([kernel_size]).to(device), dim=2)
+        f2=torch.repeat_interleave(f1, torch.tensor([PruningRatio.kernel_size]).to(device), dim=2)
         f2=f2.to(device)
         #print("repeat_interleave Tensor",f2) 
         zero_indices = f2 == 0
