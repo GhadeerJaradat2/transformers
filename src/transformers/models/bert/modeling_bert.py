@@ -461,7 +461,7 @@ class BertSelfAttention(nn.Module):
         global kernel_size
         kernel_size = 2
         # Adjust the kernel to have the same number of channels as the tensor
-        kernel = torch.ones((shapeBefor[1], 1, kernel_size, kernel_size))
+        kernel = torch.ones((shapeBefore[1], 1, kernel_size, kernel_size))
         kernel=kernel.to(device)
         # Apply the 2D convolution with stride 4
         # Set groups equal to the number of channels to apply convolution independently per channel
