@@ -27,7 +27,7 @@ layer=0
 Thirdcounter=0
 TotalNumOfconnections=0
 Removedconnections=0
-import PruningRatio
+from transformers.models.bert import PruningRatio
 PruningRatio.PruningRatio=0
 import math
 import os
