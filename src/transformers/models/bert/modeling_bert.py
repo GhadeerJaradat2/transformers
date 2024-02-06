@@ -561,7 +561,7 @@ class BertSelfAttention(nn.Module):
         global Removedconnections
         Removedconnections = Removedconnections+NoOfPrunedconnections
         
-        thresholdVal=0
+        thresholdVal=PruningRatio.HeadPruningThreshold
     
         listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
         global  Layerno   
