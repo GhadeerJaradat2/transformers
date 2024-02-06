@@ -465,7 +465,7 @@ class BertSelfAttention(nn.Module):
         kernel=kernel.to(device)
         # Apply the 2D convolution with stride 4
         # Set groups equal to the number of channels to apply convolution independently per channel
-        sum_tensor = torch.nn.functional.conv2d(PaddedTensor, kernel, stride=kernel_size, groups=12)#has the summation for each block
+        sum_tensor = torch.nn.functional.conv2d(PaddedTensor, kernel, stride=kernel_size, groups=shapeBefore[1])#has the summation for each block
         sum_tensor=sum_tensor.to(device)
         #print("sum_tensor",sum_tensor)
         #------------------------------------------------------------
