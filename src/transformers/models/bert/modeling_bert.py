@@ -32,6 +32,8 @@ PruningRatio.PruningRatio=0
 PruningRatio.kernel_size=2
 PruningRatio.approxFlag=0
 PruningRatio.LocalPrune=0
+PruningRatio.RemovedHeads
+PruningRatio.TotalNumOfHeads
 import math
 import os
 import warnings
@@ -559,10 +561,11 @@ class BertSelfAttention(nn.Module):
         global TotalNumOfconnections
         TotalNumOfconnections = TotalNumOfconnections+(12*N*N)
         global Removedconnections
+        
         Removedconnections = Removedconnections+NoOfPrunedconnections
         
         thresholdVal=PruningRatio.HeadPruningThreshold
-    
+        PruningRatio.TotalNumOfHeads=PruningRatio.TotalNumOfHeads+4
         listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
         global  Layerno   
         
@@ -577,9 +580,9 @@ class BertSelfAttention(nn.Module):
                     
                     Third_Frac_att_score [0][i] [zero_indices] = 0 
                     SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
-                    
+                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Removedconnections = Removedconnections+Remaining_Connection
-                    print("After Removedconnections",Removedconnections)
+                    # print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
              
         elif(Layerno%shapeBefore[1]==1):
@@ -593,9 +596,9 @@ class BertSelfAttention(nn.Module):
                     
                     Third_Frac_att_score [0][i] [zero_indices] = 0 
                     SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
-                    
+                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Removedconnections = Removedconnections+Remaining_Connection
-                    print("After Removedconnections",Removedconnections)
+                    # print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==2):
             for i in range(shapeBefore[1]):
@@ -608,9 +611,9 @@ class BertSelfAttention(nn.Module):
                     
                     Third_Frac_att_score [0][i] [zero_indices] = 0 
                     SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
-                    
+                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Removedconnections = Removedconnections+Remaining_Connection
-                    print("After Removedconnections",Removedconnections)
+                    # print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==3):
             for i in range(shapeBefore[1]):
@@ -623,9 +626,9 @@ class BertSelfAttention(nn.Module):
                     
                     Third_Frac_att_score [0][i] [zero_indices] = 0 
                     SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
-                    
+                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Removedconnections = Removedconnections+Remaining_Connection
-                    print("After Removedconnections",Removedconnections)
+                    # print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==4):
             for i in range(shapeBefore[1]):
@@ -635,12 +638,12 @@ class BertSelfAttention(nn.Module):
                     zero_indices = Interger_attention_score[0][i] == 0
                     First_Frac_att_score[0][i] [zero_indices] = 0
                     Second_Frac_att_score [0][i] [zero_indices] = 0
-                    
+                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Third_Frac_att_score [0][i] [zero_indices] = 0 
                     SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
                     
                     Removedconnections = Removedconnections+Remaining_Connection
-                    print("After Removedconnections",Removedconnections)
+                    # print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==5):
             for i in range(shapeBefore[1]):
@@ -653,9 +656,9 @@ class BertSelfAttention(nn.Module):
                     
                     Third_Frac_att_score [0][i] [zero_indices] = 0 
                     SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
-                    
+                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Removedconnections = Removedconnections+Remaining_Connection
-                    print("After Removedconnections",Removedconnections)
+                    # print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==6):
             for i in range(shapeBefore[1]):
@@ -665,12 +668,12 @@ class BertSelfAttention(nn.Module):
                     zero_indices = Interger_attention_score[0][i] == 0
                     First_Frac_att_score[0][i] [zero_indices] = 0
                     Second_Frac_att_score [0][i] [zero_indices] = 0
-                    
+                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Third_Frac_att_score [0][i] [zero_indices] = 0 
                     SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
                     
                     Removedconnections = Removedconnections+Remaining_Connection
-                    print("After Removedconnections",Removedconnections)
+                    # print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==7):
             for i in range(shapeBefore[1]):
@@ -683,9 +686,9 @@ class BertSelfAttention(nn.Module):
                     
                     Third_Frac_att_score [0][i] [zero_indices] = 0 
                     SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
-                    
+                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Removedconnections = Removedconnections+Remaining_Connection
-                    print("After Removedconnections",Removedconnections)
+                    # print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==8):
            for i in range(shapeBefore[1]):
@@ -695,12 +698,12 @@ class BertSelfAttention(nn.Module):
                     zero_indices = Interger_attention_score[0][i] == 0
                     First_Frac_att_score[0][i] [zero_indices] = 0
                     Second_Frac_att_score [0][i] [zero_indices] = 0
-                    
+                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Third_Frac_att_score [0][i] [zero_indices] = 0 
                     SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
                     
                     Removedconnections = Removedconnections+Remaining_Connection
-                    print("After Removedconnections",Removedconnections)
+                    # print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==9):
             for i in range(shapeBefore[1]):
@@ -710,12 +713,12 @@ class BertSelfAttention(nn.Module):
                     zero_indices = Interger_attention_score[0][i] == 0
                     First_Frac_att_score[0][i] [zero_indices] = 0
                     Second_Frac_att_score [0][i] [zero_indices] = 0
-                    
+                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Third_Frac_att_score [0][i] [zero_indices] = 0 
                     SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
                     
                     Removedconnections = Removedconnections+Remaining_Connection
-                    print("After Removedconnections",Removedconnections)
+                    # print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==10):
             for i in range(shapeBefore[1]):
@@ -728,9 +731,9 @@ class BertSelfAttention(nn.Module):
                     
                     Third_Frac_att_score [0][i] [zero_indices] = 0 
                     SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
-                    
+                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Removedconnections = Removedconnections+Remaining_Connection
-                    print("After Removedconnections",Removedconnections)
+                    # print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         elif(Layerno%shapeBefore[1]==11):
             for i in range(shapeBefore[1]):
@@ -740,16 +743,16 @@ class BertSelfAttention(nn.Module):
                     zero_indices = Interger_attention_score[0][i] == 0
                     First_Frac_att_score[0][i] [zero_indices] = 0
                     Second_Frac_att_score [0][i] [zero_indices] = 0
-                    
+                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Third_Frac_att_score [0][i] [zero_indices] = 0 
                     SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
                     
                     Removedconnections = Removedconnections+Remaining_Connection
-                    print("After Removedconnections",Removedconnections)
+                    # print("After Removedconnections",Removedconnections)
                     print("deleted in L ", Layerno%12)
         
         Layerno=Layerno+1
-        # print("TotalNumOfconnections", TotalNumOfconnections,"       Removedconnections", Removedconnections) 
+        print("TotalNumOfHeads", PruningRatio.TotalNumOfHeads,"       RemovedHeads", PruningRatio.RemovedHeads) 
        
         
         # int_att_scores=torch.matmul(query_layer_MSBFirstRound, key_layer_MSBFirstRound.transpose(-1, -2))
