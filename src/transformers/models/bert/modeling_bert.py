@@ -34,6 +34,7 @@ PruningRatio.approxFlag=0
 PruningRatio.LocalPrune=0
 PruningRatio.RemovedHeads
 PruningRatio.TotalNumOfHeads
+PruningRatio.HeadPruningThreshold
 import math
 import os
 import warnings
