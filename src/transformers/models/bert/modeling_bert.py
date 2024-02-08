@@ -435,7 +435,7 @@ class BertSelfAttention(nn.Module):
         #Save the value before applying absolute operation
         Interger_attention_score=attention_scores_MSBFirstRound 
         global  Layerno 
-        if(Layerno%12>=2):
+        if(Layerno%12>=0):
             #find he absolute value
             attention_scores_MSBFirstRound= torch.abs(attention_scores_MSBFirstRound)
             #print("Absolute attention_scores_MSBFirstRound",attention_scores_MSBFirstRound)
