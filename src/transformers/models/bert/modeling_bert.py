@@ -33,8 +33,8 @@ PruningRatio.kernel_size=2
 PruningRatio.approxFlag=0
 PruningRatio.LocalPrune=0
 PruningRatio.HeadPruningThreshold=0
-PruningRatio.RemovedHeads
-PruningRatio.TotalNumOfHeads
+PruningRatio.RemovedHeads=0
+PruningRatio.TotalNumOfHeads=0
 import math
 import os
 import warnings
