@@ -611,7 +611,7 @@ class BertSelfAttention(nn.Module):
             #             Third_Frac_att_score [0][i] [zero_indices] = 0 
             #             SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
                         
-                        Removedconnections = Removedconnections+Remaining_Connection
+                        # Removedconnections = Removedconnections+Remaining_Connection
                         # print("After Removedconnections",Removedconnections)
                         # print("deleted in L ", Layerno%12)
             if(Layerno%12==3):
