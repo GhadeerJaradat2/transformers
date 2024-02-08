@@ -568,48 +568,48 @@ class BertSelfAttention(nn.Module):
         listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
         global  Layerno   
         
-        if(Layerno%12==0):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
-                    Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
-                    Interger_attention_score[0][i]=0
-                    zero_indices = Interger_attention_score[0][i] == 0
-                    First_Frac_att_score[0][i] [zero_indices] = 0
-                    Second_Frac_att_score [0][i] [zero_indices] = 0
+        # if(Layerno%12==0):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
+        #             Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
+        #             Interger_attention_score[0][i]=0
+        #             zero_indices = Interger_attention_score[0][i] == 0
+        #             First_Frac_att_score[0][i] [zero_indices] = 0
+        #             Second_Frac_att_score [0][i] [zero_indices] = 0
                     
-                    Third_Frac_att_score [0][i] [zero_indices] = 0 
-                    SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
-                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
-                    Removedconnections = Removedconnections+Remaining_Connection
-                    # print("After Removedconnections",Removedconnections)
-                    # print("deleted in L ", Layerno%12)
+        #             Third_Frac_att_score [0][i] [zero_indices] = 0 
+        #             SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
+        #             PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
+        #             Removedconnections = Removedconnections+Remaining_Connection
+        #             # print("After Removedconnections",Removedconnections)
+        #             # print("deleted in L ", Layerno%12)
              
-        if(Layerno%12==1):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
-                    Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
-                    Interger_attention_score[0][i]=0
-                    zero_indices = Interger_attention_score[0][i] == 0
-                    First_Frac_att_score[0][i] [zero_indices] = 0
-                    Second_Frac_att_score [0][i] [zero_indices] = 0
+        # if(Layerno%12==1):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
+        #             Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
+        #             Interger_attention_score[0][i]=0
+        #             zero_indices = Interger_attention_score[0][i] == 0
+        #             First_Frac_att_score[0][i] [zero_indices] = 0
+        #             Second_Frac_att_score [0][i] [zero_indices] = 0
                     
-                    Third_Frac_att_score [0][i] [zero_indices] = 0 
-                    SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
-                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
-                    Removedconnections = Removedconnections+Remaining_Connection
-                    # print("After Removedconnections",Removedconnections)
-                    # print("deleted in L ", Layerno%12)
-        if(Layerno%12==2):
-            for i in range(12):
-                if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
-                    Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
-                    Interger_attention_score[0][i]=0
-                    zero_indices = Interger_attention_score[0][i] == 0
-                    First_Frac_att_score[0][i] [zero_indices] = 0
-                    Second_Frac_att_score [0][i] [zero_indices] = 0
-                    PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
-                    Third_Frac_att_score [0][i] [zero_indices] = 0 
-                    SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
+        #             Third_Frac_att_score [0][i] [zero_indices] = 0 
+        #             SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
+        #             PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
+        #             Removedconnections = Removedconnections+Remaining_Connection
+        #             # print("After Removedconnections",Removedconnections)
+        #             # print("deleted in L ", Layerno%12)
+        # if(Layerno%12==2):
+        #     for i in range(12):
+        #         if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
+        #             Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
+        #             Interger_attention_score[0][i]=0
+        #             zero_indices = Interger_attention_score[0][i] == 0
+        #             First_Frac_att_score[0][i] [zero_indices] = 0
+        #             Second_Frac_att_score [0][i] [zero_indices] = 0
+        #             PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
+        #             Third_Frac_att_score [0][i] [zero_indices] = 0 
+        #             SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
                     
                     Removedconnections = Removedconnections+Remaining_Connection
                     # print("After Removedconnections",Removedconnections)
