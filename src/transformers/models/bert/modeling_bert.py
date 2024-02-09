@@ -481,7 +481,7 @@ class BertSelfAttention(nn.Module):
         M=sumShape[2]
         #Define N to achieve [0%-->N=M,50%--> N=M//2 , 75%, N=( M + 3) // 4, 87.5%, --> N=( M + 7) // 8
         # print("PruningRatio",PruningRatio.PruningRatio)
-        k = math.ceil(M * (1 - PruningRatio.PruningRatio))  # Number of elements to keep
+        k = math.floor(M * (1 - PruningRatio.PruningRatio))  # Number of elements to keep
         
         
         values, indices = torch.topk(sum_tensor, k=k, dim=3, largest=True)    
