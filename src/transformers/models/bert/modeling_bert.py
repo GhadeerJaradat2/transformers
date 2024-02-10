@@ -17,7 +17,7 @@
 # For using 16 bit fixed point representation, Q2.13 is suffecient, Max=3.999879, Min=-4
 alph=-0.5#{ -1--> 0% pruning ratio, 0--> 50%, 1-->100%, -0.5-->25%,.5-->75%}
 
-Layerno=0
+
 
 MaxFXP=127.99609375#Max value for fixed point representation
 MinFXP=-128#Min value for fixed point representation
@@ -28,8 +28,8 @@ Thirdcounter=0
 TotalNumOfconnections=0
 Removedconnections=0
 from transformers.models.bert import PruningRatio
-PruningRatio.PruningRatio=0
 PruningRatio.Layerno=0
+PruningRatio.PruningRatio=0
 PruningRatio.kernel_size=2
 PruningRatio.approxFlag=0
 PruningRatio.LocalPrune=0
@@ -388,7 +388,7 @@ class BertSelfAttention(nn.Module):
         #############################################################################################
         ################MULTI ROUND FILTERING BEGINING###############################################
         #############################################################################################
-        global Layerno
+        
         
         #Multi Round FIltering Approximation
         # get the  significant bits MSBFirstround
@@ -435,7 +435,7 @@ class BertSelfAttention(nn.Module):
         
         #Save the value before applying absolute operation
         Interger_attention_score=attention_scores_MSBFirstRound 
-        global  Layerno 
+        
         
         #find he absolute value
         attention_scores_MSBFirstRound= torch.abs(attention_scores_MSBFirstRound)
@@ -484,7 +484,7 @@ class BertSelfAttention(nn.Module):
         #print("max_sum_tensor.shape",max_sum_tensor.shape)
         mean_sum_tensor= torch.mean(sum_tensor,3)
         #print("mean_sum_tensor",mean_sum_tensor)
-        if(Layerno%12>=2):
+        if(PruningRatio.Layerno%12>=2):
             if( PruningRatio.PruningRatio>=0 and PruningRatio.PruningRatio<1):
                 threshold=torch.add(torch.mul(max_sum_tensor,PruningRatio.PruningRatio) , (torch.mul(mean_sum_tensor,(1-PruningRatio.PruningRatio)) ))
             elif ( PruningRatio.PruningRatio>-1 and PruningRatio.PruningRatio<0 ):
@@ -572,7 +572,7 @@ class BertSelfAttention(nn.Module):
         listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
           
         
-        # if(Layerno%12==0):
+        # if(PruningRatio.Layerno%12==0):
         #     for i in range(12):
         #         if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
         #             Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
@@ -586,9 +586,9 @@ class BertSelfAttention(nn.Module):
         #             PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
         #             Removedconnections = Removedconnections+Remaining_Connection
         #             # print("After Removedconnections",Removedconnections)
-        #             # print("deleted in L ", Layerno%12)
+        #             # print("deleted in L ", PruningRatio.Layerno%12)
              
-        # if(Layerno%12==1):
+        # if(PruningRatio.Layerno%12==1):
         #     for i in range(12):
         #         if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
         #             Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
@@ -602,8 +602,8 @@ class BertSelfAttention(nn.Module):
         #             PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
         #             Removedconnections = Removedconnections+Remaining_Connection
         #             # print("After Removedconnections",Removedconnections)
-        #             # print("deleted in L ", Layerno%12)
-        # if(%12==2):
+        #             # print("deleted in L ", PruningRatio.Layerno%12)
+        # if(PruningRatio.Layerno%12==2):
         #     for i in range(12):
         #         if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
         #             Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
@@ -617,8 +617,8 @@ class BertSelfAttention(nn.Module):
                     
                     # Removedconnections = Removedconnections+Remaining_Connection
                     # print("After Removedconnections",Removedconnections)
-                    # print("deleted in L ", Layerno%12)
-        # if(Layerno%12==3):
+                    # print("deleted in L ", PruningRatio.Layerno%12)
+        # if(PruningRatio.Layerno%12==3):
         #     for i in range(12):
         #         if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
         #             Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
@@ -632,8 +632,8 @@ class BertSelfAttention(nn.Module):
         #             PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
         #             Removedconnections = Removedconnections+Remaining_Connection
         #             # print("After Removedconnections",Removedconnections)
-        #             # print("deleted in L ", Layerno%12)
-        if(Layerno%12==4):
+        #             # print("deleted in L ", PruningRatio.Layerno%12)
+        if(PruningRatio.Layerno%12==4):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
@@ -647,8 +647,8 @@ class BertSelfAttention(nn.Module):
                     PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Removedconnections = Removedconnections+Remaining_Connection
                     # print("After Removedconnections",Removedconnections)
-                    # print("deleted in L ", Layerno%12)
-        if(Layerno%12==5):
+                    # print("deleted in L ", PruningRatio.Layerno%12)
+        if(PruningRatio.Layerno%12==5):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
@@ -662,8 +662,8 @@ class BertSelfAttention(nn.Module):
                     
                     Removedconnections = Removedconnections+Remaining_Connection
                     # print("After Removedconnections",Removedconnections)
-                    # print("deleted in L ", Layerno%12)
-        if(Layerno%12==6):
+                    # print("deleted in L ", PruningRatio.Layerno%12)
+        if(PruningRatio.Layerno%12==6):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
@@ -677,8 +677,8 @@ class BertSelfAttention(nn.Module):
                     PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Removedconnections = Removedconnections+Remaining_Connection
                     # print("After Removedconnections",Removedconnections)
-                    # print("deleted in L ", Layerno%12)
-        if(Layerno%12==7):
+                    # print("deleted in L ", PruningRatio.Layerno%12)
+        if(PruningRatio.Layerno%12==7):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
@@ -692,8 +692,8 @@ class BertSelfAttention(nn.Module):
                     PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Removedconnections = Removedconnections+Remaining_Connection
                     # print("After Removedconnections",Removedconnections)
-                    # print("deleted in L ", Layerno%12)
-        if(Layerno%12==8):
+                    # print("deleted in L ", PruningRatio.Layerno%12)
+        if(PruningRatio.Layerno%12==8):
            for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
@@ -707,8 +707,8 @@ class BertSelfAttention(nn.Module):
                     
                     Removedconnections = Removedconnections+Remaining_Connection
                     # print("After Removedconnections",Removedconnections)
-                    # print("deleted in L ", Layerno%12)
-        if(Layerno%12==9):
+                    # print("deleted in L ", PruningRatio.Layerno%12)
+        if(PruningRatio.Layerno%12==9):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
@@ -722,8 +722,8 @@ class BertSelfAttention(nn.Module):
                     PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Removedconnections = Removedconnections+Remaining_Connection
                     # print("After Removedconnections",Removedconnections)
-                    # print("deleted in L ", Layerno%12)
-        if(Layerno%12==10):
+                    # print("deleted in L ", PruningRatio.Layerno%12)
+        if(PruningRatio.Layerno%12==10):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
@@ -737,8 +737,8 @@ class BertSelfAttention(nn.Module):
                     PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Removedconnections = Removedconnections+Remaining_Connection
                     # print("After Removedconnections",Removedconnections)
-                    # print("deleted in L ", Layerno%12)
-        if(Layerno%12==11):
+                    # print("deleted in L ", PruningRatio.Layerno%12)
+        if(PruningRatio.Layerno%12==11):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
                     Remaining_Connection=torch.count_nonzero(Interger_attention_score[0][i])
@@ -752,9 +752,9 @@ class BertSelfAttention(nn.Module):
                     PruningRatio.RemovedHeads=PruningRatio.RemovedHeads+1
                     Removedconnections = Removedconnections+Remaining_Connection
                     # print("After Removedconnections",Removedconnections)
-                    # print("deleted in L ", Layerno%12)
+                    # print("deleted in L ", PruningRatio.Layerno%12)
         
-        Layerno=Layerno+1
+        PruningRatio.Layerno=PruningRatio.Layerno+1
         # print("TotalNumOfHeads", PruningRatio.TotalNumOfHeads,"       RemovedHeads", PruningRatio.RemovedHeads) 
            
             
