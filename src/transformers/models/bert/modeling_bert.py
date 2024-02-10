@@ -435,140 +435,142 @@ class BertSelfAttention(nn.Module):
         #Save the value before applying absolute operation
         Interger_attention_score=attention_scores_MSBFirstRound 
         global  Layerno 
-        if(Layerno%12>=2):
-            #find he absolute value
-            attention_scores_MSBFirstRound= torch.abs(attention_scores_MSBFirstRound)
-            #print("Absolute attention_scores_MSBFirstRound",attention_scores_MSBFirstRound)
-            #shape has the dimensions before padding
-            shapeBefore=attention_scores_MSBFirstRound.shape
-            #print("shapeBefore",shapeBefore)
-            SoftmaxResultMAskingTensor = torch.ones(shapeBefore[0], shapeBefore[1], shapeBefore[2], shapeBefore[3])
-            #make quantization again to ensure clipping
-            attention_scores_MSBFirstRound=torch.round(attention_scores_MSBFirstRound*(2**fractionsFXP))/(2**fractionsFXP)
-            attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
-            
-            # Determine the new size for the last two dimensions to be divisible by 4
-            new_dim2 = (shapeBefore[2] + 3) // 4 * 4  # Rounds up to the nearest number divisible by 4
-            new_dim3 = (shapeBefore[3] + 3) // 4 * 4  # Rounds up to the nearest number divisible by 4
-    
-            # Pad the tensor to the new size
-            # Calculate the padding needed for the last two dimensions
-            padding = (0, new_dim3 - shapeBefore[3], 0, new_dim2 - shapeBefore[2])
-    
-            # Use F.pad for padding
-            PaddedTensor = torch.nn.functional.pad(attention_scores_MSBFirstRound, padding, "constant", 0)
-            PaddedTensor=PaddedTensor.to(device)
-            #print("Padded attention_scores_MSBFirstRound",PaddedTensor)
-            #Find the summation of the (abolute of int*int result) of th For the whole tensor --For head Pruning       
-            Mean_attention_scores_MSBFirstRound=torch.sum(PaddedTensor,(2,3))
-            
-            #-----------------------------------------------------
-            #To find the summation for the block pruning
-            # Create a kernel filled with ones for summing up 4x4 blocks
-           
-            # Adjust the kernel to have the same number of channels as the tensor
-            kernel = torch.ones((12, 1, PruningRatio.kernel_size, PruningRatio.kernel_size))
-            kernel=kernel.to(device)
-            # Apply the 2D convolution with stride 4
-            # Set groups equal to the number of channels to apply convolution independently per channel
-            sum_tensor = torch.nn.functional.conv2d(PaddedTensor, kernel, stride=PruningRatio.kernel_size, groups=12)#has the summation for each block
-            sum_tensor=sum_tensor.to(device)
-            #print("sum_tensor",sum_tensor)
-            #------------------------------------------------------------
-            sumShape=sum_tensor.shape
-            #print("sumShape",sumShape)
-            #Define the N:M ratio[1:2-->50%, 3:4-->75%, 7:8-->87.5%] for the block pruning
-            M=sumShape[2]
-            #Define N to achieve [0%-->N=M,50%--> N=M//2 , 75%, N=( M + 3) // 4, 87.5%, --> N=( M + 7) // 8
-            # print("PruningRatio",PruningRatio.PruningRatio)
-            k = math.floor(M * (1 - PruningRatio.PruningRatio))  # Number of elements to keep
-            
-            
-            values, indices = torch.topk(sum_tensor, k=k, dim=3, largest=True)    
-            #print("values, indices",values, indices)
-            mask = torch.zeros_like(sum_tensor, dtype=torch.bool).to(device)
-            #print(mask)
-    
-            # Create a grid for the B, C, H dimensions
-            B, C, H, W = sum_tensor.shape
-            b_grid, c_grid, h_grid = torch.meshgrid(
-                torch.arange(B, device=sum_tensor.device), 
-                torch.arange(C, device=sum_tensor.device), 
-                torch.arange(H, device=sum_tensor.device),
-                indexing='ij'
-            )
-    
-            # Expand the grids to match the shape of indices tensor for broadcasting
-            # The shape of indices is [B, C, H, N] where N is the number of top values
-            b_grid_expanded = b_grid.unsqueeze(-1).expand_as(indices)
-            c_grid_expanded = c_grid.unsqueeze(-1).expand_as(indices)
-            h_grid_expanded = h_grid.unsqueeze(-1).expand_as(indices)
-    
-            # Use the expanded grids and indices to update the mask
-            mask[b_grid_expanded, c_grid_expanded, h_grid_expanded, indices] = True
-            
-            # Use the mask to zero out the smallest m values in each row
-            sum_tensor[~mask] = 0
-            #print("sum_tensor after masking",sum_tensor)
-    
-            #-----------------------------------------------------------------
-            #Find location of zeros, replace non zeros with 1
-            zero_indices = mask == 0
-            non_zero_indices = mask != 0
-            sum_tensor[zero_indices] = 0
-            sum_tensor[non_zero_indices] = 1
-            
-            #print("sparse sum_tensor",sum_tensor)
-            #----------------------------------
-            #broadcast the values to match the initial shape of the  PaddedTensor
-    
-            f1=torch.repeat_interleave(sum_tensor, torch.tensor([PruningRatio.kernel_size]).to(device), dim=3)
-            f1=f1.to(device)
-            f2=torch.repeat_interleave(f1, torch.tensor([PruningRatio.kernel_size]).to(device), dim=2)
-            f2=f2.to(device)
-            #print("repeat_interleave Tensor",f2) 
-            zero_indices = f2 == 0
-            PaddedTensor[zero_indices] = 0
-            #print("Sparse PaddedTensor",PaddedTensor) 
-            #remove the padding 
-            unpadded= PaddedTensor[:,:, :shapeBefore[2], :shapeBefore[3]]
-            unpadded=unpadded.to(device)
-            #print("Remove the padding PaddedTensor",unpadded)
-            #get location of zeros
-            zero_indices = unpadded == 0
-            #delete in the int*int int*fra,fra*int,frac*frac result multiplication
-            #print("Interger_attention_score.shape",Interger_attention_score.shape)
-            #print("unpadded.shape",unpadded.shape)
-            #count non zero values
-            NoOfPrunedconnections=torch.numel(Interger_attention_score)-torch.count_nonzero(unpadded)
-            #print("NoOfPrunedconnections",NoOfPrunedconnections)
-            
-            Interger_attention_score [zero_indices] = 0
-            First_Frac_att_score [zero_indices] = 0
-            Second_Frac_att_score [zero_indices] = 0
-            Third_Frac_att_score [zero_indices] = 0 
-            SoftmaxResultMAskingTensor [zero_indices] = 0 
-            #print("Sparse INT Mul",Interger_attention_score)
-            #print("Sparse First_Frac_att_score",First_Frac_att_score)
-            #print("Sparse Second_Frac_att_score",Second_Frac_att_score)
-            #print("Sparse Third_Frac_att_score",Third_Frac_att_score)
-            
-            
-            
-            
-            N=shapeBefore[2]
-            #define theta for each layer, and prune the heads that are less than this theta
-            #print("THETA 6 MSB")
-            global TotalNumOfconnections
-            TotalNumOfconnections = TotalNumOfconnections+(12*N*N)
-            global Removedconnections
-            Removedconnections = Removedconnections+NoOfPrunedconnections
-            PruningRatio.TotalNumOfHeads=PruningRatio.TotalNumOfHeads+12
-            thresholdVal=PruningRatio.HeadPruningThreshold
         
-            listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
-              
+        #find he absolute value
+        attention_scores_MSBFirstRound= torch.abs(attention_scores_MSBFirstRound)
+        #print("Absolute attention_scores_MSBFirstRound",attention_scores_MSBFirstRound)
+        #shape has the dimensions before padding
+        shapeBefore=attention_scores_MSBFirstRound.shape
+        #print("shapeBefore",shapeBefore)
+        SoftmaxResultMAskingTensor = torch.ones(shapeBefore[0], shapeBefore[1], shapeBefore[2], shapeBefore[3])
+        #make quantization again to ensure clipping
+        attention_scores_MSBFirstRound=torch.round(attention_scores_MSBFirstRound*(2**fractionsFXP))/(2**fractionsFXP)
+        attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
+        
+        # Determine the new size for the last two dimensions to be divisible by 4
+        new_dim2 = (shapeBefore[2] + 3) // 4 * 4  # Rounds up to the nearest number divisible by 4
+        new_dim3 = (shapeBefore[3] + 3) // 4 * 4  # Rounds up to the nearest number divisible by 4
+
+        # Pad the tensor to the new size
+        # Calculate the padding needed for the last two dimensions
+        padding = (0, new_dim3 - shapeBefore[3], 0, new_dim2 - shapeBefore[2])
+
+        # Use F.pad for padding
+        PaddedTensor = torch.nn.functional.pad(attention_scores_MSBFirstRound, padding, "constant", 0)
+        PaddedTensor=PaddedTensor.to(device)
+        #print("Padded attention_scores_MSBFirstRound",PaddedTensor)
+        #Find the summation of the (abolute of int*int result) of th For the whole tensor --For head Pruning       
+        Mean_attention_scores_MSBFirstRound=torch.sum(PaddedTensor,(2,3))
+        
+        #-----------------------------------------------------
+        #To find the summation for the block pruning
+        # Create a kernel filled with ones for summing up 4x4 blocks
+       
+        # Adjust the kernel to have the same number of channels as the tensor
+        kernel = torch.ones((12, 1, PruningRatio.kernel_size, PruningRatio.kernel_size))
+        kernel=kernel.to(device)
+        # Apply the 2D convolution with stride 4
+        # Set groups equal to the number of channels to apply convolution independently per channel
+        sum_tensor = torch.nn.functional.conv2d(PaddedTensor, kernel, stride=PruningRatio.kernel_size, groups=12)#has the summation for each block
+        sum_tensor=sum_tensor.to(device)
+        #print("sum_tensor",sum_tensor)
+        #------------------------------------------------------------
+        sumShape=sum_tensor.shape
+        #print("sumShape",sumShape)
+        #print("sum_tensor",sum_tensor)
+        min_sum_tensor= torch.min(sum_tensor,3)[0]
+        max_sum_tensor= torch.max(sum_tensor,3)[0]
+        #print("max_sum_tensor.shape",max_sum_tensor.shape)
+        mean_sum_tensor= torch.mean(sum_tensor,3)
+        #print("mean_sum_tensor",mean_sum_tensor)
+        if(Layerno%12>=2):
+            if( PruningRatio.PruningRatio>=0 and PruningRatio.PruningRatio<1):
+                threshold=torch.add(torch.mul(max_sum_tensor,PruningRatio.PruningRatio) , (torch.mul(mean_sum_tensor,(1-PruningRatio.PruningRatio)) ))
+            elif ( PruningRatio.PruningRatio>-1 and PruningRatio.PruningRatio<0 ):
+                threshold=torch.add(torch.mul(min_sum_tensor,-PruningRatio.PruningRatio) ,(torch.mul(mean_sum_tensor,(1+PruningRatio.PruningRatio))))
+        else:
+            threshold=min_sum_tensor
             
+        ThresholdShape=threshold.shape
+        #print("threshold shape",threshold.shape)
+        #print("threshold ",threshold)
+        #expand the dim of threshold tensor to become 1x12xnxn instead of 1x12xnxn
+        threshold_with_extra_dim = threshold.unsqueeze(-1)
+        threshold_expanded = threshold_with_extra_dim.expand(-1, -1, -1, ThresholdShape[-1])
+        #print("threshold_expanded.shape",threshold_expanded.shape)
+        #print("threshold_expanded",threshold_expanded)
+        SubtractTensor = torch.sub(sum_tensor.to(device), threshold_expanded.to(device))
+        SubtractTensor = SubtractTensor.to(device)
+        #print("SubtractTensor",SubtractTensor)
+        #Delete if vals in SubtractTensor  < threshold
+        torch.nn.functional.relu(SubtractTensor, inplace=True)
+        #print("After RELU SubtractTensor",SubtractTensor)
+        mask = torch.zeros_like(sum_tensor, dtype=torch.bool).to(device)
+        #print(mask)
+
+        
+
+        #-----------------------------------------------------------------
+        #Find location of zeros, replace non zeros with 1
+         
+        zero_indices = SubtractTensor == 0
+        non_zero_indices = SubtractTensor != 0
+        SubtractTensor[non_zero_indices] = 1
+        #print("sparse SubtractTensor",SubtractTensor)
+        #----------------------------------
+        sum_tensor[zero_indices] = 0
+        #print("Spare sum tensor",sum_tensor)
+        #----------------------------------
+        #broadcast the values to match the initial shape of the  PaddedTensor
+
+        f1=torch.repeat_interleave(sum_tensor, torch.tensor([PruningRatio.kernel_size]).to(device), dim=3)
+        f1=f1.to(device)
+        f2=torch.repeat_interleave(f1, torch.tensor([PruningRatio.kernel_size]).to(device), dim=2)
+        f2=f2.to(device)
+        #print("repeat_interleave Tensor",f2) 
+        zero_indices = f2 == 0
+        
+        PaddedTensor[zero_indices] = 0
+        #print("Sparse PaddedTensor",PaddedTensor) 
+        #remove the padding 
+        unpadded= PaddedTensor[:,:, :shapeBefore[2], :shapeBefore[3]]
+        unpadded=unpadded.to(device)
+        #print("Remove the padding PaddedTensor",unpadded)
+        #get location of zeros
+        zero_indices = unpadded == 0
+        #delete in the int*int int*fra,fra*int,frac*frac result multiplication
+        #print("Interger_attention_score.shape",Interger_attention_score.shape)
+        #print("unpadded.shape",unpadded.shape)
+        #count non zero values
+        NoOfPrunedconnections=torch.numel(Interger_attention_score)-torch.count_nonzero(unpadded)
+        #print("NoOfPrunedconnections",NoOfPrunedconnections)
+        
+        Interger_attention_score [zero_indices] = 0
+        First_Frac_att_score [zero_indices] = 0
+        Second_Frac_att_score [zero_indices] = 0
+        Third_Frac_att_score [zero_indices] = 0 
+        SoftmaxResultMAskingTensor [zero_indices] = 0 
+        #print("Sparse INT Mul",Interger_attention_score)
+        #print("Sparse First_Frac_att_score",First_Frac_att_score)
+        #print("Sparse Second_Frac_att_score",Second_Frac_att_score)
+        #print("Sparse Third_Frac_att_score",Third_Frac_att_score)
+        
+        
+        
+        
+        N=shapeBefore[2]
+        #define theta for each layer, and prune the heads that are less than this theta
+        #print("THETA 6 MSB")
+        global TotalNumOfconnections
+        TotalNumOfconnections = TotalNumOfconnections+(12*N*N)
+        global Removedconnections
+        Removedconnections = Removedconnections+NoOfPrunedconnections
+        PruningRatio.TotalNumOfHeads=PruningRatio.TotalNumOfHeads+12
+        thresholdVal=PruningRatio.HeadPruningThreshold
+    
+        listzeromean=[1,1,1,1,1,1,1,1,1,1,1,1]
+          
+        
         # if(Layerno%12==0):
         #     for i in range(12):
         #         if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
