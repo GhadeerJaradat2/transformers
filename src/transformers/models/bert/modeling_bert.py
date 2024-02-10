@@ -29,6 +29,7 @@ TotalNumOfconnections=0
 Removedconnections=0
 from transformers.models.bert import PruningRatio
 PruningRatio.PruningRatio=0
+PruningRatio.Layerno=0
 PruningRatio.kernel_size=2
 PruningRatio.approxFlag=0
 PruningRatio.LocalPrune=0
