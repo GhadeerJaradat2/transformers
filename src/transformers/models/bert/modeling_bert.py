@@ -19,9 +19,11 @@ alph=-0.5#{ -1--> 0% pruning ratio, 0--> 50%, 1-->100%, -0.5-->25%,.5-->75%}
 
 
 
-MaxFXP=127.99609375#Max value for fixed point representation
-MinFXP=-128#Min value for fixed point representation
-fractionsFXP=8 # number of fractions in FXP
+MaxFXP=255.9375
+# 127.99609375#Max value for fixed point representation
+MinFXP=-256
+# -128#Min value for fixed point representation
+fractionsFXP=4 # number of fractions in FXP
 MSBFirstround=0
 layer=0
 Thirdcounter=0
