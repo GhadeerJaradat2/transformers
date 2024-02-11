@@ -618,8 +618,8 @@ class BertSelfAttention(nn.Module):
                     SoftmaxResultMAskingTensor [0][i] [zero_indices] = 0
                     
                     Removedconnections = Removedconnections+Remaining_Connection
-                    print("After Removedconnections",Removedconnections)
-                    print("deleted in L ", PruningRatio.Layerno%12)
+                    # print("After Removedconnections",Removedconnections)
+                    # print("deleted in L ", PruningRatio.Layerno%12)
         if(PruningRatio.Layerno%12==3):
             for i in range(12):
                 if Mean_attention_scores_MSBFirstRound[0][i] <thresholdVal:
