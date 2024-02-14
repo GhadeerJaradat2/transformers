@@ -546,7 +546,7 @@ class BertSelfAttention(nn.Module):
         NoOfPrunedconnections=torch.numel(Interger_attention_score)-torch.count_nonzero(unpadded)
         #print("NoOfPrunedconnections",NoOfPrunedconnections)
         
-        Interger_attention_score [zero_indices] = 0
+        # Interger_attention_score [zero_indices] = 0
         First_Frac_att_score [zero_indices] = 0
         Second_Frac_att_score [zero_indices] = 0
         Third_Frac_att_score [zero_indices] = 0 
