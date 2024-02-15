@@ -404,7 +404,8 @@ class BertSelfAttention(nn.Module):
         query_layer_MSBFirstRound=torch.trunc(query_layer_MSBFirstRound)
         #get the fraction part of the Query
         query_layer_MSBFirstRound_Fractions=query_layer-query_layer_MSBFirstRound
-      
+        # for the top-k model, the pruning will be done based on the Q*KT, not only the integer parts
+        AttentionWeights=torch.matmul(query_layer, key_layer.transpose(-1, -2))
         #-------------------------------------------------------------------------------------------------------------------
         #steps 
         #1- Multiply Q_int * K_int, save in result1 tensor,pad the tensor to be divisable by 4,save how many rows and cols added -->
@@ -438,15 +439,18 @@ class BertSelfAttention(nn.Module):
         
         if(PruningRatio.Layerno%12>=0):
             #find he absolute value
+            AttentionWeights_abs=torch.abs(AttentionWeights)
             attention_scores_MSBFirstRound= torch.abs(attention_scores_MSBFirstRound)
             #print("Absolute attention_scores_MSBFirstRound",attention_scores_MSBFirstRound)
             #shape has the dimensions before padding
-            shapeBefore=attention_scores_MSBFirstRound.shape
+            shapeBefore=AttentionWeights_abs.shape
             #print("shapeBefore",shapeBefore)
             SoftmaxResultMAskingTensor = torch.ones(shapeBefore[0], shapeBefore[1], shapeBefore[2], shapeBefore[3])
             #make quantization again to ensure clipping
             attention_scores_MSBFirstRound=torch.round(attention_scores_MSBFirstRound*(2**fractionsFXP))/(2**fractionsFXP)
             attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
+            AttentionWeights_abs=torch.round(AttentionWeights_abs*(2**fractionsFXP))/(2**fractionsFXP)
+            AttentionWeights_abs=torch.clip(AttentionWeights_abs,min=MinFXP,max=MaxFXP)
             
             # Determine the new size for the last two dimensions to be divisible by 4
             new_dim2 = (shapeBefore[2] + 3) // 4 * 4  # Rounds up to the nearest number divisible by 4
@@ -457,7 +461,8 @@ class BertSelfAttention(nn.Module):
             padding = (0, new_dim3 - shapeBefore[3], 0, new_dim2 - shapeBefore[2])
     
             # Use F.pad for padding
-            PaddedTensor = torch.nn.functional.pad(attention_scores_MSBFirstRound, padding, "constant", 0)
+            PaddedTensor = torch.nn.functional.pad(AttentionWeights_abs, padding, "constant", 0)
+            
             PaddedTensor=PaddedTensor.to(device)
             #print("Padded attention_scores_MSBFirstRound",PaddedTensor)
             #Find the summation of the (abolute of int*int result) of th For the whole tensor --For head Pruning       
@@ -543,12 +548,13 @@ class BertSelfAttention(nn.Module):
             #count non zero values
             NoOfPrunedconnections=torch.numel(Interger_attention_score)-torch.count_nonzero(unpadded)
             #print("NoOfPrunedconnections",NoOfPrunedconnections)
-            
-            Interger_attention_score [zero_indices] = 0
-            First_Frac_att_score [zero_indices] = 0
-            Second_Frac_att_score [zero_indices] = 0
-            Third_Frac_att_score [zero_indices] = 0 
-            SoftmaxResultMAskingTensor [zero_indices] = 0 
+
+            AttentionWeights[zero_indices]=0
+            # Interger_attention_score [zero_indices] = 0
+            # First_Frac_att_score [zero_indices] = 0
+            # Second_Frac_att_score [zero_indices] = 0
+            # Third_Frac_att_score [zero_indices] = 0 
+            # SoftmaxResultMAskingTensor [zero_indices] = 0 
             #print("Sparse INT Mul",Interger_attention_score)
             #print("Sparse First_Frac_att_score",First_Frac_att_score)
             #print("Sparse Second_Frac_att_score",Second_Frac_att_score)
@@ -762,9 +768,9 @@ class BertSelfAttention(nn.Module):
         # Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         
         if(PruningRatio.approxFlag):
-            FirstRoundAtt=Interger_attention_score+First_Frac_att_score+Second_Frac_att_score
+            FirstRoundAtt=AttentionWeights #Interger_attention_score+First_Frac_att_score+Second_Frac_att_score
         else:
-            FirstRoundAtt=Interger_attention_score+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
+            FirstRoundAtt= AttentionWeights #Interger_attention_score+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
         
         #print("FirstRoundAtt",FirstRoundAtt);
         attention_scores=FirstRoundAtt
