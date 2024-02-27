@@ -484,7 +484,7 @@ class BertSelfAttention(nn.Module):
         #print("max_sum_tensor.shape",max_sum_tensor.shape)
         mean_sum_tensor= torch.mean(sum_tensor,3)
         #print("mean_sum_tensor",mean_sum_tensor)
-        if(PruningRatio.Layerno%12>=2):
+        if(PruningRatio.Layerno%12>=0):
             if( PruningRatio.PruningRatio>=0 and PruningRatio.PruningRatio<=1):
                 threshold=torch.add(torch.mul(max_sum_tensor,PruningRatio.PruningRatio) , (torch.mul(mean_sum_tensor,(1-PruningRatio.PruningRatio)) ))
             elif ( PruningRatio.PruningRatio>=-1 and PruningRatio.PruningRatio<0 ):
