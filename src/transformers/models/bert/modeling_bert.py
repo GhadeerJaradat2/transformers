@@ -29,6 +29,9 @@ TotalNumOfconnections=0
 Removedconnections=0
 from transformers.models.bert import PruningRatio
 PruningRatio.Layerno=0
+PruningRatio.SparsityFromApproximation=0
+PruningRatio.ZerosFromApproximation=0
+PruningRatio.TotalQKRelations=0
 PruningRatio.PruningRatio=0
 PruningRatio.kernel_size=2
 PruningRatio.approxFlag=0
@@ -764,9 +767,16 @@ class BertSelfAttention(nn.Module):
         # Third_Frac_att_score=torch.matmul(query_layer_MSBFirstRound_Fractions, key_layer_MSBFirstRound_Fractions.transpose(-1, -2))
         
         if(PruningRatio.approxFlag):
+            nonapproximated=Interger_attention_score+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
             FirstRoundAtt=Interger_attention_score+First_Frac_att_score+Second_Frac_att_score
+            PruningRatio.TotalQKRelations=PruningRatio.TotalQKRelations+torch.count_nonzero(nonapproximated)
+            PruningRatio.ZerosFromApproximation=PruningRatio.ZerosFromApproximation+(torch.count_nonzero(nonapproximated)-torch.count_nonzero(FirstRoundAtt))
         else:
+            
+           
             FirstRoundAtt=Interger_attention_score+First_Frac_att_score+Second_Frac_att_score+Third_Frac_att_score
+            
+
         
         #print("FirstRoundAtt",FirstRoundAtt);
         attention_scores=FirstRoundAtt
