@@ -6,3 +6,5 @@ HeadPruningThreshold=0
 RemovedHeads=0
 TotalNumOfHeads=0
 Layerno=0
+ZerosFromApproximation=0
+TotalQKRelations=0
