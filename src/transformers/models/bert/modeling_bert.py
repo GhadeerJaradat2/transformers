@@ -333,6 +333,7 @@ class BertSelfAttention(nn.Module):
     ) -> Tuple[torch.Tensor]:
         start_time = time.perf_counter()
         if torch.cuda.is_available():
+            torch.cuda.synchronize()
             start_event.record()
         
         #cahnge #2
