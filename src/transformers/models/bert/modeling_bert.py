@@ -39,6 +39,10 @@ PruningRatio.LocalPrune=0
 PruningRatio.HeadPruningThreshold=0
 PruningRatio.RemovedHeads=0
 PruningRatio.TotalNumOfHeads=0
+PruningRatio.TimeCPU=0
+PruningRatio.TimeGPU=0
+start_event = torch.cuda.Event(enable_timing=True)
+end_event = torch.cuda.Event(enable_timing=True)
 import math
 import os
 import warnings
@@ -324,6 +328,9 @@ class BertSelfAttention(nn.Module):
         past_key_value: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
         output_attentions: Optional[bool] = False,
     ) -> Tuple[torch.Tensor]:
+        start_time = time.perf_counter()
+        start_event.record()
+        
         #cahnge #2
         global fractionsFXP,MinFXP,MaxFXP
         hidden_states=torch.round(hidden_states*(2**fractionsFXP))/(2**fractionsFXP)
@@ -852,8 +859,14 @@ class BertSelfAttention(nn.Module):
 
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
-        
-        
+        global timeCPU
+        global timeGPU
+        end_time = time.perf_counter()
+        TimeCPU += (end_time - start_time)
+        end_event.record()
+        torch.cuda.synchronize()
+        TimeGPU += start_event.elapsed_time(end_event)
+
         return outputs
 
 
