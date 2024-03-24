@@ -863,14 +863,13 @@ class BertSelfAttention(nn.Module):
 
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
-        global TimeCPU
-        global TimeGPU
+     
         end_time = time.perf_counter()
-        TimeCPU += (end_time - start_time)
+        PruningRatio.TimeCPU += (end_time - start_time)
         if torch.cuda.is_available():
             end_event.record()
             torch.cuda.synchronize()
-            TimeGPU += start_event.elapsed_time(end_event)
+            PruningRatio.TimeGPU += start_event.elapsed_time(end_event)
 
         return outputs
 
