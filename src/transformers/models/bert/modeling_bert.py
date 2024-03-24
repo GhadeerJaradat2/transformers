@@ -41,8 +41,7 @@ PruningRatio.RemovedHeads=0
 PruningRatio.TotalNumOfHeads=0
 PruningRatio.TimeCPU=0
 PruningRatio.TimeGPU=0
-start_event = torch.cuda.Event(enable_timing=True)
-end_event = torch.cuda.Event(enable_timing=True)
+
 import math
 import os
 import warnings
@@ -57,6 +56,8 @@ if torch.cuda.is_available():
     device= torch.device("cuda")
 else:
     device = torch.device('cpu')
+start_event = torch.cuda.Event(enable_timing=True)
+end_event = torch.cuda.Event(enable_timing=True)
 from ...activations import ACT2FN
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
