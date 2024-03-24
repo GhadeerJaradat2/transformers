@@ -28,6 +28,7 @@ Thirdcounter=0
 TotalNumOfconnections=0
 Removedconnections=0
 from transformers.models.bert import PruningRatio
+import time
 PruningRatio.Layerno=0
 PruningRatio.SparsityFromApproximation=0
 PruningRatio.ZerosFromApproximation=0
