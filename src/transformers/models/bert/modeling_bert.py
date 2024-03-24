@@ -863,8 +863,8 @@ class BertSelfAttention(nn.Module):
 
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
-        global timeCPU
-        global timeGPU
+        global TimeCPU
+        global TimeGPU
         end_time = time.perf_counter()
         TimeCPU += (end_time - start_time)
         if torch.cuda.is_available():
