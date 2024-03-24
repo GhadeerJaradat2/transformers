@@ -55,10 +55,11 @@ from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 if torch.cuda.is_available():
     device= torch.device("cuda")
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
 else:
     device = torch.device('cpu')
-start_event = torch.cuda.Event(enable_timing=True)
-end_event = torch.cuda.Event(enable_timing=True)
+
 from ...activations import ACT2FN
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
@@ -331,7 +332,8 @@ class BertSelfAttention(nn.Module):
         output_attentions: Optional[bool] = False,
     ) -> Tuple[torch.Tensor]:
         start_time = time.perf_counter()
-        start_event.record()
+        if torch.cuda.is_available():
+            start_event.record()
         
         #cahnge #2
         global fractionsFXP,MinFXP,MaxFXP
@@ -865,9 +867,10 @@ class BertSelfAttention(nn.Module):
         global timeGPU
         end_time = time.perf_counter()
         TimeCPU += (end_time - start_time)
-        end_event.record()
-        torch.cuda.synchronize()
-        TimeGPU += start_event.elapsed_time(end_event)
+        if torch.cuda.is_available():
+            end_event.record()
+            torch.cuda.synchronize()
+            TimeGPU += start_event.elapsed_time(end_event)
 
         return outputs
 
