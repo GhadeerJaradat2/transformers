@@ -8,3 +8,5 @@ TotalNumOfHeads=0
 Layerno=0
 ZerosFromApproximation=0
 TotalQKRelations=0
+TimeCPU=0
+TimeGPU=0
