@@ -16,7 +16,8 @@
 """PyTorch BERT model."""
 # For using 16 bit fixed point representation, Q2.13 is suffecient, Max=3.999879, Min=-4
 alph=-0.5#{ -1--> 0% pruning ratio, 0--> 50%, 1-->100%, -0.5-->25%,.5-->75%}
-
+import time
+total_time = 0
 
 
 MaxFXP=127.99609375#Max value for fixed point representation
@@ -240,6 +241,7 @@ class BertEmbeddings(nn.Module):
         inputs_embeds: Optional[torch.FloatTensor] = None,
         past_key_values_length: int = 0,
     ) -> torch.Tensor:
+        
         if input_ids is not None:
             input_shape = input_ids.size()
         else:
@@ -866,7 +868,7 @@ class BertSelfAttention(nn.Module):
             outputs = outputs + (past_key_value,)
      
         end_time = time.perf_counter()
-        PruningRatio.TimeCPU += (end_time - start_time)
+        PruningRatio.TimeCPU = (end_time - start_time)
         if torch.cuda.is_available():
             end_event.record()
             torch.cuda.synchronize()
