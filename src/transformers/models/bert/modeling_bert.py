@@ -872,7 +872,7 @@ class BertSelfAttention(nn.Module):
         if torch.cuda.is_available():
             end_event.record()
             torch.cuda.synchronize()
-            PruningRatio.TimeGPU += start_event.elapsed_time(end_event)
+            PruningRatio.TimeGPU = start_event.elapsed_time(end_event)
 
         return outputs
 
