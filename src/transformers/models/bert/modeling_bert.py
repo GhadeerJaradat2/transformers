@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """PyTorch BERT model."""
+from transformers.models.bert import HyperParameters
 import time
 total_time = 0
 import math
@@ -238,7 +239,12 @@ class BertEmbeddings(nn.Module):
             embeddings += position_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
-        print("ghadeer")
+        #change #1
+        #Convert the embedings to FIxed point INT 16
+       
+        embeddings=torch.round(embeddings*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        embeddings=torch.clip(embeddings,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        print("embeddings")
         return embeddings
 
 
@@ -285,6 +291,14 @@ class BertSelfAttention(nn.Module):
         output_attentions: Optional[bool] = False,
     ) -> Tuple[torch.Tensor]:
         start_time = time.perf_counter()
+        #cahnge #2
+        hidden_states=torch.round(hidden_states*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        hidden_states=torch.clip(hidden_states,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
+        
+        #change #3
+        mixed_query_layer=torch.round(mixed_query_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        mixed_query_layer=torch.clip(mixed_query_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
         mixed_query_layer = self.query(hidden_states)
 
         # If this is instantiated as a cross-attention module, the keys
@@ -311,7 +325,11 @@ class BertSelfAttention(nn.Module):
             value_layer = self.transpose_for_scores(self.value(hidden_states))
 
         query_layer = self.transpose_for_scores(mixed_query_layer)
-
+        
+        #change #4
+        query_layer=torch.round(query_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        query_layer=torch.clip(query_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
         use_cache = past_key_value is not None
         if self.is_decoder:
             # if cross_attention save Tuple(torch.Tensor, torch.Tensor) of all cross attention key/value_states.
@@ -323,9 +341,20 @@ class BertSelfAttention(nn.Module):
             # if encoder bi-directional self-attention `past_key_value` is always `None`
             past_key_value = (key_layer, value_layer)
 
+        #change #5
+        key_layer=torch.round(key_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        key_layer=torch.clip(key_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        #change #6
+        value_layer=torch.round(value_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        value_layer=torch.clip(value_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+
+        
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
-
+        #change #7
+        attention_scores=torch.round(attention_scores*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        attention_scores=torch.clip(attention_scores,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
             if use_cache:
@@ -355,7 +384,13 @@ class BertSelfAttention(nn.Module):
 
         # Normalize the attention scores to probabilities.
         attention_probs = nn.functional.softmax(attention_scores, dim=-1)
-
+        ## print the input of softmax into a file
+        #print(attention_scores,file=open('C:/Users/100062811/OneDrive - Yarmouk University/Desktop/Ghadeer/LNS/Codes/Statistics/InputToSoftmax_sst.txt','a'))
+        print("Softmax")
+        #change #8
+        attention_probs=torch.round(attention_probs*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        attention_probs=torch.clip(attention_probs,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
         attention_probs = self.dropout(attention_probs)
@@ -365,7 +400,10 @@ class BertSelfAttention(nn.Module):
             attention_probs = attention_probs * head_mask
 
         context_layer = torch.matmul(attention_probs, value_layer)
-
+         #change #9
+        context_layer=torch.round(context_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        context_layer=torch.clip(context_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(new_context_layer_shape)
