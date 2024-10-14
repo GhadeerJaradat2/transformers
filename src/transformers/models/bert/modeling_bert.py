@@ -385,8 +385,8 @@ class BertSelfAttention(nn.Module):
         # Normalize the attention scores to probabilities.
         attention_probs = nn.functional.softmax(attention_scores, dim=-1)
         ## print the input of softmax into a file
-        print(attention_scores,file=open('InputToSoftmax_cola.txt','a'))
-        print(attention_probs,file=open('OutputFromSoftmax_cola.txt','a'))
+        # print(attention_scores,file=open('InputToSoftmax_cola.txt','a'))
+        # print(attention_probs,file=open('OutputFromSoftmax_cola.txt','a'))
         #change #8
         attention_probs=torch.round(attention_probs*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
         attention_probs=torch.clip(attention_probs,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
