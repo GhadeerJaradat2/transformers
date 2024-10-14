@@ -385,6 +385,8 @@ class BertSelfAttention(nn.Module):
         #Modify the  softmax function to perform the approximated method.
         #1- find the max for every row, and subtract it  from the row
         #2-
+
+        MaxValues=torch.max(attention_scores,1)
         # Normalize the attention scores to probabilities.
         attention_probs = nn.functional.softmax(attention_scores, dim=-1)
         # print the input of softmax into a file
