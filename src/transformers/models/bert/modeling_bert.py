@@ -244,7 +244,7 @@ class BertEmbeddings(nn.Module):
        
         embeddings=torch.round(embeddings*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
         embeddings=torch.clip(embeddings,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
-        print("embeddings")
+        
         return embeddings
 
 
@@ -381,12 +381,12 @@ class BertSelfAttention(nn.Module):
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
             attention_scores = attention_scores + attention_mask
-
+        
         # Normalize the attention scores to probabilities.
         attention_probs = nn.functional.softmax(attention_scores, dim=-1)
         ## print the input of softmax into a file
-        #print(attention_scores,file=open('C:/Users/100062811/OneDrive - Yarmouk University/Desktop/Ghadeer/LNS/Codes/Statistics/InputToSoftmax_sst.txt','a'))
-        print("Softmax")
+        print(attention_scores,file=open('InputToSoftmax_cola.txt','a'))
+        print(attention_probs,file=open('OutputFromSoftmax_cola.txt','a'))
         #change #8
         attention_probs=torch.round(attention_probs*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
         attention_probs=torch.clip(attention_probs,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
