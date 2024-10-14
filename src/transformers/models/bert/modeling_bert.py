@@ -238,6 +238,7 @@ class BertEmbeddings(nn.Module):
             embeddings += position_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
+        print("ghadeer")
         return embeddings
 
 
