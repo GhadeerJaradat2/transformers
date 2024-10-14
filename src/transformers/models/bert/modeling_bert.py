@@ -381,10 +381,13 @@ class BertSelfAttention(nn.Module):
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
             attention_scores = attention_scores + attention_mask
-        
+        #---------------------------------------------------------------------------------------
+        #Modify the  softmax function to perform the approximated method.
+        #1- find the max for every row, and subtract it  from the row
+        #2-
         # Normalize the attention scores to probabilities.
         attention_probs = nn.functional.softmax(attention_scores, dim=-1)
-        ## print the input of softmax into a file
+        # print the input of softmax into a file
         # print(attention_scores,file=open('InputToSoftmax_cola.txt','a'))
         # print(attention_probs,file=open('OutputFromSoftmax_cola.txt','a'))
         #change #8
