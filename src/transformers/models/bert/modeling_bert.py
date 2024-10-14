@@ -295,11 +295,11 @@ class BertSelfAttention(nn.Module):
         hidden_states=torch.round(hidden_states*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
         hidden_states=torch.clip(hidden_states,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
         
-        
+         mixed_query_layer = self.query(hidden_states)
         #change #3
         mixed_query_layer=torch.round(mixed_query_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
         mixed_query_layer=torch.clip(mixed_query_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
-        mixed_query_layer = self.query(hidden_states)
+       
 
         # If this is instantiated as a cross-attention module, the keys
         # and values come from an encoder; the attention mask needs to be
