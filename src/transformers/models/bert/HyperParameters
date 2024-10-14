@@ -1,0 +1,11 @@
+PruningRatio=.8
+kernel_size=2
+approxFlag=0
+LocalPrune=0
+HeadPruningThreshold=0
+RemovedHeads=0
+TotalNumOfHeads=0
+Layerno=0
+MaxFXP=127.99609375#Max value for fixed point representation
+MinFXP=-128#Min value for fixed point representation
+fractionsFXP=8 # number of fractions in FXP
