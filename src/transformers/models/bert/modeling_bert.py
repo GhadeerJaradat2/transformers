@@ -416,7 +416,7 @@ class BertSelfAttention(nn.Module):
         end_time = time.perf_counter()
         total_time += (end_time - start_time)
 
-        print(f"Total time for attention operation over 144 runs: {total_time} seconds")
+        
         return outputs
 
 
