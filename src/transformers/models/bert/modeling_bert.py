@@ -451,8 +451,9 @@ class BertSelfAttention(nn.Module):
         if head_mask is not None:
             attention_probs = attention_probs * head_mask
 
-        context_layer = torch.matmul(attention_probs, value_layer)
+        context_layer = torch.matmul(attention_probs.to(device), value_layer.to(device))
          #change #9
+        context_layer =context_layer.to(device)
         context_layer=torch.round(context_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
         context_layer=torch.clip(context_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
         
