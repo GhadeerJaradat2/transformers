@@ -28,7 +28,10 @@ import torch
 import torch.utils.checkpoint
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-
+if torch.cuda.is_available():
+    device= torch.device("cuda")
+else:
+    device = torch.device('cpu')
 from ...activations import ACT2FN
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
@@ -422,7 +425,7 @@ class BertSelfAttention(nn.Module):
         row_sums=row_sums.view(row_sums.shape[0],row_sums.shape[1],row_sums.shape[2],1)
         
         #fine exponent for each value
-        exp_input=torch.exp(Normalized_attentionscore)
+        exp_input=torch.exp(Normalized_attentionscore).to(device)
         #Find the softmax result
         softmax_approximated=exp_input/row_sums
 
