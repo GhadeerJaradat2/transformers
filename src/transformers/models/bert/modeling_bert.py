@@ -435,7 +435,7 @@ class BertSelfAttention(nn.Module):
         # Normalize the attention scores to probabilities.
         # attention_probs = nn.functional.softmax(attention_scores, dim=-1)
         attention_probs = softmax_approximated
-        attention_probs = attention_probs.float()
+        attention_probs = attention_probs.float().to(device)
         # print the input of softmax into a file
         # print(attention_scores,file=open('InputToSoftmax_cola.txt','a'))
         # print(attention_probs,file=open('OutputFromSoftmax_cola.txt','a'))
@@ -445,8 +445,11 @@ class BertSelfAttention(nn.Module):
         
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
-        attention_probs = self.dropout(attention_probs)
-
+        attention_probs = self.dropout(attention_probs).to(device)
+        print("head_mask")
+        print(head_mask.is_cuda())
+        print("attention_probs")
+        print(attention_probs.is_cuda())
         # Mask heads if we want to
         if head_mask is not None:
             attention_probs = attention_probs * head_mask
