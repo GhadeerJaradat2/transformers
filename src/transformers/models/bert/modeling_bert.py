@@ -382,13 +382,54 @@ class BertSelfAttention(nn.Module):
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
             attention_scores = attention_scores + attention_mask
         #---------------------------------------------------------------------------------------
+        #---------------------------------------------------------------------------------------
+        #---------------------------------------------------------------------------------------
         #Modify the  softmax function to perform the approximated method.
         #1- find the max for every row, and subtract it  from the row
         #2-
+        #get the max value for each row in the attention score max along dim=3. 
+        attention_scores_shape=attention_scores.size()
+        MaxValues=torch.max(attention_scores,3)
+        MaxValues=MaxValues[0]#only consider the values not the indecies
+        #change the shape of maxvalues, such that each max value will be in seperate row
+        MaxValues=MaxValues.view(attention_scores_shape[0],attention_scores_shape[1],attention_scores_shape[2],1)
+        Normalized_attentionscore=attention_scores-MaxValues
+        # Define the bounds for the ranges
+        # Define the bounds for the ranges
+        lower_bounds = torch.tensor([-0.5, -1.0, -1.5, -2.0, -2.5, -3.0, 
+                                     -3.5, -4.0, -4.5, -5.0, -5.5,-6, -25.0])
+        
+        upper_bounds = torch.tensor([ 0,    -.5, -1.0, -1.5, -2.0, -2.5, 
+                             -3.0,  -3.5, -4.0, -4.5, -5.0, -5.5, -6.0])
 
-        MaxValues=torch.max(attention_scores,1)
+        # Prepare an empty tensor to store the bin counts for each range per row
+        n_values = torch.zeros((Normalized_attentionscore.shape[0], Normalized_attentionscore.shape[1], Normalized_attentionscore.shape[2], len(lower_bounds))    )
+        # Iterate over each range and calculate the bin counts per row
+        for i, (lb, ub) in enumerate(zip(lower_bounds, upper_bounds)):
+            n_values[:,:, :, i] = torch.where((Normalized_attentionscore > lb) & (Normalized_attentionscore <= ub), 1, 0).sum(dim=-1)
+        # Define multipliers  as a tensor
+        multipliers = torch.tensor([ np.exp(-0.25), np.exp(-.75), np.exp(-1.25),np.exp(-1.75),np.exp(-2.25),np.exp(-2.75),np.exp(-3.25),
+                                   np.exp(-3.75), np.exp(-4.25),np.exp(-4.75), np.exp(-5.25),np.exp(-5.75),np.exp(-6)])
+        
+        # Perform element-wise multiplication across the last dimension (bins)
+        weighted_n_values = n_values * multipliers
+        
+        
+        # Sum the weighted values across the bins (last dimension)
+        row_sums = weighted_n_values.sum(dim=-1)
+        #change the viewm, each value on a seperate row
+        row_sums=row_sums.view(row_sums.shape[0],row_sums.shape[1],row_sums.shape[2],1)
+        
+        #fine exponent for each value
+        exp_input=torch.exp(Normalized_attentionscore)
+        #Find the softmax result
+        softmax_approximated=exp_input/row_sums
+
+
+
         # Normalize the attention scores to probabilities.
-        attention_probs = nn.functional.softmax(attention_scores, dim=-1)
+        # attention_probs = nn.functional.softmax(attention_scores, dim=-1)
+        attention_probs = softmax_approximated
         # print the input of softmax into a file
         # print(attention_scores,file=open('InputToSoftmax_cola.txt','a'))
         # print(attention_probs,file=open('OutputFromSoftmax_cola.txt','a'))
