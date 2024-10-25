@@ -423,9 +423,10 @@ class BertSelfAttention(nn.Module):
         row_sums = weighted_n_values.sum(dim=-1)
         #change the viewm, each value on a seperate row
         row_sums=row_sums.view(row_sums.shape[0],row_sums.shape[1],row_sums.shape[2],1)
-        
+        row_sums=row_sums.to(device)
         #fine exponent for each value
-        exp_input=torch.exp(Normalized_attentionscore).to(device)
+        exp_input=torch.exp(Normalized_attentionscore)
+        exp_input=exp_input.to(device)
         #Find the softmax result
         softmax_approximated=exp_input/row_sums
 
