@@ -446,10 +446,7 @@ class BertSelfAttention(nn.Module):
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
         attention_probs = self.dropout(attention_probs).to(device)
-        print("head_mask")
-        print(head_mask.is_cuda())
-        print("attention_probs")
-        print(attention_probs.is_cuda())
+        
         # Mask heads if we want to
         if head_mask is not None:
             attention_probs = attention_probs * head_mask
