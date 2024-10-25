@@ -431,6 +431,7 @@ class BertSelfAttention(nn.Module):
         # Normalize the attention scores to probabilities.
         # attention_probs = nn.functional.softmax(attention_scores, dim=-1)
         attention_probs = softmax_approximated
+        attention_probs = attention_probs.float()
         # print the input of softmax into a file
         # print(attention_scores,file=open('InputToSoftmax_cola.txt','a'))
         # print(attention_probs,file=open('OutputFromSoftmax_cola.txt','a'))
