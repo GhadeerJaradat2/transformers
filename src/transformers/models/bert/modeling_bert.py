@@ -15,6 +15,7 @@
 # limitations under the License.
 """PyTorch BERT model."""
 from transformers.models.bert import HyperParameters
+import numpy as np
 import time
 total_time = 0
 import math
