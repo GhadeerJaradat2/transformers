@@ -388,7 +388,7 @@ class BertSelfAttention(nn.Module):
         #---------------------------------------------------------------------------------------
         #---------------------------------------------------------------------------------------
         #---------------------------------------------------------------------------------------
-        #Modify the  softmax function to perform the approximated method.
+        #Modify the  softmax function to perform the approximated method.(WILL ITERATE OVER THE TENSOR ONE BY ONE)
         #1- find the max for every row, and subtract it  from the row
         #2-
         #get the max value for each row in the attention score max along dim=3. 
