@@ -480,7 +480,7 @@ class BertSelfAttention(nn.Module):
         max_values_reshaped = row_max_values.view(attention_scores.size(0), attention_scores.size(1), attention_scores.size(2), 1)
 
         Normalized_attentionscore=attention_scores-max_values_reshaped
-
+        Normalized_attentionscore=Normalized_attentionscore.to(device)
         # Define multipliers  as a tensor
         multipliers = torch.tensor([ np.exp(-0.25), np.exp(-.75), np.exp(-1.25),np.exp(-1.75),np.exp(-2.25),np.exp(-2.75),np.exp(-3.25),
                                    np.exp(-3.75), np.exp(-4.25),np.exp(-4.75), np.exp(-5.25),np.exp(-5.75),np.exp(-6)])
