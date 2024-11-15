@@ -398,7 +398,7 @@ class BertSelfAttention(nn.Module):
         row_max_values = torch.empty(reshaped_tensor.size(0))  # 1D tensor to hold max values for each row
         # Preallocate a tensor to store n1, n2, n3, n4, n5, n6, n7, n8,n9,n10,n11,n12,n13 for each row
         n_values = torch.zeros(reshaped_tensor.size(0), 13)  # Shape: (number of rows, 7)
-        for i, row in enumerate(reshaped_tensor): :
+        for i, row in enumerate(reshaped_tensor):
             max_value = -100  # Initialize max_value to negative infinity
             n1 = n2 = n3 = n4 = n5 = n6 = n7 = n8 = n9 = n10 = n11 = n12 = n13 = 0
             first =0
