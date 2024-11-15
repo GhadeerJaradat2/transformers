@@ -492,7 +492,7 @@ class BertSelfAttention(nn.Module):
         # Sum the weighted values across the bins (last dimension)
         row_sums = weighted_n_values.sum(dim=-1)
         #change the viewm, each value on a seperate row
-        row_sums=row_sums.view(row_sums.shape[0],row_sums.shape[1],row_sums.shape[2],1)
+        row_sums = row_sums.view(attention_scores.size(0), attention_scores.size(1), attention_scores.size(2), 1)  # Adds a singleton dimension
         row_sums=row_sums.to(device)
         #fine exponent for each value
         exp_input=torch.exp(Normalized_attentionscore)
