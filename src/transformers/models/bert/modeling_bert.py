@@ -446,7 +446,7 @@ class BertSelfAttention(nn.Module):
                         diff =  max_value - value # Difference form the max
                         diff=torch.round(diff*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
                         diff=torch.clip(diff,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
-                        if 0 <= diff < 0.5
+                        if 0 <= diff < 0.5:
                             n1 = n1 + 1
                         elif 0.5 <= diff < 1.0:
                             n2 = n2 + 1
