@@ -408,7 +408,7 @@ class BertSelfAttention(nn.Module):
                     first = 1
                     n1 = n1 + 1
                 else:
-                    if (value > max_value):
+                    if (value > max_value)
                         temp = max_value
                         max_value = value
                         diff2 = max_value - temp
