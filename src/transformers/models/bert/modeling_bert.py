@@ -514,7 +514,7 @@ class BertSelfAttention(nn.Module):
         #print("threshold ",threshold)
         #expand the dim of threshold tensor to become 1x12xnxn instead of 1x12xnxn
         # Expand threshold correctly for broadcasting
-        threshold_expanded = threshold.expand_as(sum_tensor
+        threshold_expanded = threshold.expand_as(sum_tensor)
         #print("threshold_expanded.shape",threshold_expanded.shape)
         #print("threshold_expanded",threshold_expanded)
         SubtractTensor = torch.sub(sum_tensor.to(device), threshold_expanded.to(device))
