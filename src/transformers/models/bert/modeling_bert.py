@@ -466,8 +466,8 @@ class BertSelfAttention(nn.Module):
         attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
         
         # Determine the new size for the last two dimensions to be divisible by 4
-        new_dim2 = (shapeBefore[2] + 3) // 4 * 4  # Rounds up to the nearest number divisible by 4
-        new_dim3 = (shapeBefore[3] + 3) // 4 * 4  # Rounds up to the nearest number divisible by 4
+        new_dim2 = (shapeBefore[2] + (kernel_size - 1)) // kernel_size * kernel_size  # Rounds up to the nearest number divisible by 4
+        new_dim3 = (shapeBefore[3] + (kernel_size - 1)) // kernel_size * kernel_size # Rounds up to the nearest number divisible by 4
 
         # Pad the tensor to the new size
         # Calculate the padding needed for the last two dimensions
@@ -496,10 +496,10 @@ class BertSelfAttention(nn.Module):
         sumShape=sum_tensor.shape
         #print("sumShape",sumShape)
         #print("sum_tensor",sum_tensor)
-        min_sum_tensor= torch.min(sum_tensor,3)[0]
-        max_sum_tensor= torch.max(sum_tensor,3)[0]
-        #print("max_sum_tensor.shape",max_sum_tensor.shape)
-        mean_sum_tensor= torch.mean(sum_tensor,3)
+        # Compute min, max, and mean along the last dimension
+        min_sum_tensor = torch.min(sum_tensor, dim=3, keepdim=True)[0]  # Keep dimension
+        max_sum_tensor = torch.max(sum_tensor, dim=3, keepdim=True)[0]
+        mean_sum_tensor = torch.mean(sum_tensor, dim=3, keepdim=True)
         #print("mean_sum_tensor",mean_sum_tensor)
         if(PruningRatio.Layerno%12>=0):
             if( PruningRatio.PruningRatio>=0 and PruningRatio.PruningRatio<=1):
@@ -513,8 +513,8 @@ class BertSelfAttention(nn.Module):
         #print("threshold shape",threshold.shape)
         #print("threshold ",threshold)
         #expand the dim of threshold tensor to become 1x12xnxn instead of 1x12xnxn
-        threshold_with_extra_dim = threshold.unsqueeze(-1)
-        threshold_expanded = threshold_with_extra_dim.expand(-1, -1, -1, ThresholdShape[-1])
+        # Expand threshold correctly for broadcasting
+        threshold_expanded = threshold.expand_as(sum_tensor
         #print("threshold_expanded.shape",threshold_expanded.shape)
         #print("threshold_expanded",threshold_expanded)
         SubtractTensor = torch.sub(sum_tensor.to(device), threshold_expanded.to(device))
@@ -531,25 +531,29 @@ class BertSelfAttention(nn.Module):
         #-----------------------------------------------------------------
         #Find location of zeros, replace non zeros with 1
          
+        # Generate mask for zero values
         zero_indices = SubtractTensor == 0
-        non_zero_indices = SubtractTensor != 0
-        SubtractTensor[non_zero_indices] = 1
-        #print("sparse SubtractTensor",SubtractTensor)
-        #----------------------------------
+        
+        # Convert non-zero values to 1
+        SubtractTensor[SubtractTensor != 0] = 1
+        
+        # Apply mask to sum_tensor
         sum_tensor[zero_indices] = 0
         #print("Spare sum tensor",sum_tensor)
         #----------------------------------
         #broadcast the values to match the initial shape of the  PaddedTensor
 
-        f1=torch.repeat_interleave(sum_tensor, torch.tensor([PruningRatio.kernel_size]).to(device), dim=3)
+        f1=torch.repeat_interleave(sum_tensor, torch.tensor([PruningRatio.kernel_size]).to(device), dim=2)
         f1=f1.to(device)
-        f2=torch.repeat_interleave(f1, torch.tensor([PruningRatio.kernel_size]).to(device), dim=2)
+        f2=torch.repeat_interleave(f1, torch.tensor([PruningRatio.kernel_size]).to(device), dim=3)
         f2=f2.to(device)
         #print("repeat_interleave Tensor",f2) 
         zero_indices = f2 == 0
         
-        PaddedTensor[zero_indices] = 0
-        #print("Sparse PaddedTensor",PaddedTensor) 
+        # Ensure shape consistency before applying the mask
+        if PaddedTensor.shape == expanded_tensor.shape:
+            PaddedTensor[expanded_tensor == 0] = 0
+                
         #remove the padding 
         unpadded= PaddedTensor[:,:, :shapeBefore[2], :shapeBefore[3]]
         unpadded=unpadded.to(device)
