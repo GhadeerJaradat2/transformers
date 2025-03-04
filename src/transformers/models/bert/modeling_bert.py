@@ -466,8 +466,8 @@ class BertSelfAttention(nn.Module):
         attention_scores_MSBFirstRound=torch.clip(attention_scores_MSBFirstRound,min=MinFXP,max=MaxFXP)
         
         # Determine the new size for the last two dimensions to be divisible by 4
-        new_dim2 = (shapeBefore[2] + (kernel_size - 1)) // kernel_size * kernel_size  # Rounds up to the nearest number divisible by 4
-        new_dim3 = (shapeBefore[3] + (kernel_size - 1)) // kernel_size * kernel_size # Rounds up to the nearest number divisible by 4
+        new_dim2 = (shapeBefore[2] + (PruningRatio.kernel_size - 1)) // PruningRatio.kernel_size * PruningRatio.kernel_size  # Rounds up to the nearest number divisible by 4
+        new_dim3 = (shapeBefore[3] + (PruningRatio.kernel_size - 1)) // PruningRatio.kernel_size * PruningRatio.kernel_size # Rounds up to the nearest number divisible by 4
 
         # Pad the tensor to the new size
         # Calculate the padding needed for the last two dimensions
