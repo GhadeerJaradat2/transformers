@@ -551,8 +551,8 @@ class BertSelfAttention(nn.Module):
         zero_indices = f2 == 0
         
         # Ensure shape consistency before applying the mask
-        if PaddedTensor.shape == expanded_tensor.shape:
-            PaddedTensor[expanded_tensor == 0] = 0
+        if PaddedTensor.shape == f2.shape:
+            PaddedTensor[f2 == 0] = 0
                 
         #remove the padding 
         unpadded= PaddedTensor[:,:, :shapeBefore[2], :shapeBefore[3]]
