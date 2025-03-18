@@ -397,10 +397,10 @@ class BertSelfAttention(nn.Module):
         # Initialize a tensor to store the max values for each row
         row_max_values = torch.empty(reshaped_tensor.size(0))  # 1D tensor to hold max values for each row
         # Preallocate a tensor to store n1, n2, n3, n4, n5, n6, n7, n8,n9,n10,n11,n12,n13 for each row
-        n_values = torch.zeros(reshaped_tensor.size(0), 12)  # Shape: (number of rows, 7)
+        n_values = torch.zeros(reshaped_tensor.size(0), 11)  # Shape: (number of rows, 7)
         for i, row in enumerate(reshaped_tensor):
             max_value = -100  # Initialize max_value to negative infinity
-            n1 = n2 = n3 = n4 = n5 = n6 = n7 = n8 = n9 = n10 = n11 = n12 =  0
+            n1 = n2 = n3 = n4 = n5 = n6 = n7 = n8 = n9 = n10 = n11 =   0
             first =0
             for value in row:
                 if (first ==0):
@@ -415,29 +415,29 @@ class BertSelfAttention(nn.Module):
                         diff2=torch.round(diff2*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
                         diff2=torch.clip(diff2,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
                         if 0 < diff2 < 0.5:
-                            n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2, n1+1
+                            n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n11,n10,n9,n8,n7,n6,n5,n4,n3,n2, n1+1
                         elif 0.5 <= diff2 < 1.0:
-                           n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1,1
+                           n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n11+n10,n9,n8,n7,n6,n5,n4,n3,n2,n1,1
                         elif 1.0 <= diff2 < 1.5:
-                            n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10,n9,n8,n7,n6,n5,n4,n3,n2,n1,0,1
+                            n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n11+n10+n9,n8,n7,n6,n5,n4,n3,n2,n1,0,1
                         elif 1.5 <= diff2 < 2.0:
-                             n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10+n9,n8,n7,n6,n5,n4,n3,n2,n1,0,0,1
+                             n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n11+n10+n9+n8,n7,n6,n5,n4,n3,n2,n1,0,0,1
                         elif 2.0 <= diff2 < 2.5:
-                            n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 =  n12+n11+n10+n9+n8,n7,n6,n5,n4,n3,n2,n1,0,0,0,1
+                           n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 =  n11+n10+n9+n8+n7,n6,n5,n4,n3,n2,n1,0,0,0,1
                         elif 2.5 <= diff2 < 3.0:
-                             n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10+n9+n8+n7,n6,n5,n4,n3,n2,n1,0,0,0,0,1
+                             n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n11+n10+n9+n8+n7+n6,n5,n4,n3,n2,n1,0,0,0,0,1
                         elif 3.0 <= diff2 < 3.5:
-                            n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10+n9+n8+n7+n6,n5,n4,n3,n2,n1,0,0,0,0,0,1
+                            n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n11+n10+n9+n8+n7+n6+n5,n4,n3,n2,n1,0,0,0,0,0,1
                         elif 3.5 <= diff2 < 4.0:
-                             n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10+n9+n8+n7+n6+n5,n4,n3,n2,n1,0,0,0,0,0,0,1
+                             n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n11+n10+n9+n8+n7+n6+n5+n4,n3,n2,n1,0,0,0,0,0,0,1
                         elif 4.0 <= diff2 < 4.5:
-                             n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10+n9+n8+n7+n6+n5+n4,n3,n2,n1,0,0,0,0,0,0,0,1
+                             n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n11+n10+n9+n8+n7+n6+n5+n4+n3,n2,n1,0,0,0,0,0,0,0,1
                         elif 4.5 <= diff2 < 5.0:
-                             n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10+n9+n8+n7+n6+n5+n4+n3,n2,n1,0,0,0,0,0,0,0,0,1
-                        elif 5.0 <= diff2 < 5.5:
-                             n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10+n9+n8+n7+n6+n5+n4+n3+n2,n1,0,0,0,0,0,0,0,0,0,1
+                             n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n11+n10+n9+n8+n7+n6+n5+n4+n3+n2,n1,0,0,0,0,0,0,0,0,1
                         else:
-                             n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10+n9+n8+n7+n6+n5+n4+n3+n2+n1,0,0,0,0,0,0,0,0,0,0,1
+                             n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n11+n10+n9+n8+n7+n6+n5+n4+n3+n2+n1,0,0,0,0,0,0,0,0,0,1
+                        # else:
+                        #      n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10+n9+n8+n7+n6+n5+n4+n3+n2+n1,0,0,0,0,0,0,0,0,0,0,1
                         # else:
                         #      n13,n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n13+n12+n11+n10+n9+n8+n7+n6+n5+n4+n3+n2+n1,0,0,0,0,0,0,0,0,0,0,0,1
                         
@@ -466,15 +466,15 @@ class BertSelfAttention(nn.Module):
                             n9 = n9 + 1
                         elif 4.5 <= diff < 5.0:
                             n10 = n10 + 1
-                        elif 5.0 <= diff < 5.5:
-                            n11 = n11 + 1
                         else:
-                            n12 = n12 + 1
+                            n11 = n11 + 1
+                        # else:
+                        #     n12 = n12 + 1
                         # else:
                         #     n13 = n13 + 1
             row_max_values[i] = max_value  # Store the max value for this row
             # Store the results in the n_values tensor
-            n_values[i] = torch.tensor([n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11, n12])
+            n_values[i] = torch.tensor([n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11])
 
         # Reshape the max values tensor to match the original tensor dimensions for subtraction
         max_values_reshaped = row_max_values.view(attention_scores.size(0), attention_scores.size(1), attention_scores.size(2), 1)
@@ -483,7 +483,7 @@ class BertSelfAttention(nn.Module):
         Normalized_attentionscore=Normalized_attentionscore.to(device)
         # Define multipliers  as a tensor
         multipliers = torch.tensor([ np.exp(-0.25), np.exp(-.75), np.exp(-1.25),np.exp(-1.75),np.exp(-2.25),np.exp(-2.75),np.exp(-3.25),
-                                   np.exp(-3.75), np.exp(-4.25),np.exp(-4.75), np.exp(-5.25),np.exp(-5.75)])
+                                   np.exp(-3.75), np.exp(-4.25),np.exp(-4.75), np.exp(-5.25)])
         multipliers = multipliers.to(device)
         n_values = n_values.to(device)
         # Perform element-wise multiplication across the last dimension (bins)
