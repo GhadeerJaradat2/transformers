@@ -427,7 +427,7 @@ class BertSelfAttention(nn.Module):
                         elif 2.5 <= diff2 < 3.0:
                              n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10+n9+n8+n7,n6,n5,n4,n3,n2,n1,0,0,0,0,1
                         elif 3.0 <= diff2 < 3.5:
-                             n13,n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10+n9+n8+n7+n6,n5,n4,n3,n2,n1,0,0,0,0,0,1
+                            n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10+n9+n8+n7+n6,n5,n4,n3,n2,n1,0,0,0,0,0,1
                         elif 3.5 <= diff2 < 4.0:
                              n12,n11,n10,n9,n8,n7,n6,n5,n4,n3,n2,n1 = n12+n11+n10+n9+n8+n7+n6+n5,n4,n3,n2,n1,0,0,0,0,0,0,1
                         elif 4.0 <= diff2 < 4.5:
