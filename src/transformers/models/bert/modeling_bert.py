@@ -401,10 +401,10 @@ class BertSelfAttention(nn.Module):
         # Define the bounds for the ranges
         # Define the bounds for the ranges
         lower_bounds = torch.tensor([-0.5, -1.0, -1.5, -2.0, -2.5, -3.0, 
-                                     -3.5, -4.0, -4.5, -5.0, -5.5,-6, -25.0])
+                                     -3.5, -4.0, -4.5, -5.0, -5.5,-25])
         
         upper_bounds = torch.tensor([ 0,    -.5, -1.0, -1.5, -2.0, -2.5, 
-                             -3.0,  -3.5, -4.0, -4.5, -5.0, -5.5, -6.0])
+                             -3.0,  -3.5, -4.0, -4.5, -5.0, -5.5])
 
         # Prepare an empty tensor to store the bin counts for each range per row
         n_values = torch.zeros((Normalized_attentionscore.shape[0], Normalized_attentionscore.shape[1], Normalized_attentionscore.shape[2], len(lower_bounds))    )
@@ -413,7 +413,7 @@ class BertSelfAttention(nn.Module):
             n_values[:,:, :, i] = torch.where((Normalized_attentionscore > lb) & (Normalized_attentionscore <= ub), 1, 0).sum(dim=-1)
         # Define multipliers  as a tensor
         multipliers = torch.tensor([ np.exp(-0.25), np.exp(-.75), np.exp(-1.25),np.exp(-1.75),np.exp(-2.25),np.exp(-2.75),np.exp(-3.25),
-                                   np.exp(-3.75), np.exp(-4.25),np.exp(-4.75), np.exp(-5.25),np.exp(-5.75),np.exp(-6)])
+                                   np.exp(-3.75), np.exp(-4.25),np.exp(-4.75), np.exp(-5.25),np.exp(-5.75)])
         
         # Perform element-wise multiplication across the last dimension (bins)
         weighted_n_values = n_values * multipliers
