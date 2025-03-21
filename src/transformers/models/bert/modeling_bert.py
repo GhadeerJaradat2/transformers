@@ -412,7 +412,7 @@ class BertSelfAttention(nn.Module):
             n_values[:,:, :, i] = torch.where((Normalized_attentionscore > lb) & (Normalized_attentionscore <= ub), 1, 0).sum(dim=-1)
         # Define multipliers  as a tensor
         multipliers = torch.tensor([ np.exp(-0.25), np.exp(-.75), np.exp(-1.25),np.exp(-1.75),np.exp(-2.25),np.exp(-2.75),np.exp(-3.25),
-                                   np.exp(-3.75), np.exp(-4.25),np.exp(-4.75), np.exp(-5.25),np.exp(-5.75)])
+                                   np.exp(-3.75), np.exp(-4.25),np.exp(-4.75), np.exp(-5.25)])
         
         # Perform element-wise multiplication across the last dimension (bins)
         weighted_n_values = n_values * multipliers
