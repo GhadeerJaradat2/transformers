@@ -414,7 +414,7 @@ class BertSelfAttention(nn.Module):
         # Define multipliers  as a tensor
         # Create a new tensor with doubled values
 
-        new_multipliers = torch.tensor([ np.exp(-0.125), np.exp(-0.375),  
+        multipliers = torch.tensor([ np.exp(-0.125), np.exp(-0.375),  
             np.exp(-0.625), 
             np.exp(-0.875), 
             np.exp(-1.125),  
