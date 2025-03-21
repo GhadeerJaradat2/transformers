@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """PyTorch BERT model."""
+ptint("TEST")
 from transformers.models.bert import HyperParameters
 import numpy as np
 import time
@@ -400,9 +401,9 @@ class BertSelfAttention(nn.Module):
         Normalized_attentionscore=attention_scores-MaxValues
         # Define the bounds for the ranges
         # Define the bounds for the ranges
-        upper_bounds = torch.tensor([ 0 ,  -1.5,   -3,   -4.5,   -6])
+        upper_bounds = torch.tensor([ 0 ,  -1.75,   -3.5,   -5.25,   -6])
         
-        lower_bounds = torch.tensor([-1.5, -3,  -4.5,   -6,  -25 ])
+        lower_bounds = torch.tensor([-1.75, -3.5,  -5.5,   -6,  -25 ])
         
        
 
@@ -414,10 +415,10 @@ class BertSelfAttention(nn.Module):
         # Define multipliers  as a tensor
         # Create a new tensor with doubled values
 
-        multipliers = torch.tensor([  np.exp(-0.75),  
-            np.exp(-2.25),                       
-            np.exp(-3.75),    
-            np.exp(-5.25),
+        multipliers = torch.tensor([  np.exp(-0.875),  
+            np.exp(-2.625),                       
+            np.exp(-4.5),    
+            np.exp(-5.625),
             np.exp(-6) ])
         
         # Perform element-wise multiplication across the last dimension (bins)
