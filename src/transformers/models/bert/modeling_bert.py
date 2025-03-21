@@ -400,9 +400,11 @@ class BertSelfAttention(nn.Module):
         Normalized_attentionscore=attention_scores-MaxValues
         # Define the bounds for the ranges
         # Define the bounds for the ranges
-        lower_bounds = torch.tensor([-0.25 , -.50, -.75, -1.0, -1.25, -1.50,  -1.75, -2.0, -2.25, -2.50, -2.75, -3,   -3.25, -3.5, -3.75, -4, -4.25, -4. ])
+        upper_bounds = torch.tensor([ 0    , -.25, -0.50, -.75, -1.0, -1.25,   -1.5,  -1.75, -2.0,  -2.25, -2.50, -2.75, -3,    -3.25, -3.5, -3.75, -4, -4.25, -4.5, -4.75, -5, -5.25, -5.5, -5.75, -6])
         
-        upper_bounds = torch.tensor([ 0    , -.25, -0.50, -.75, -1.0, -1.25, -1.5,  -1.75, -2.0, -2.25, -2.50, -2.75, -3, -3.25])
+        lower_bounds = torch.tensor([-0.25 , -.50, -.75,  -1.0, -1.25, -1.50,  -1.75, -2.0,  -2.25, -2.50, -2.75,  -3,     -3.25, -3.5, -3.75, -4, -4.25, -4.5, -4.75, -5, -5.25, -5.5, -5.75, -6 ,-25 ])
+        
+       
 
         # Prepare an empty tensor to store the bin counts for each range per row
         n_values = torch.zeros((Normalized_attentionscore.shape[0], Normalized_attentionscore.shape[1], Normalized_attentionscore.shape[2], len(lower_bounds))    )
@@ -410,8 +412,35 @@ class BertSelfAttention(nn.Module):
         for i, (lb, ub) in enumerate(zip(lower_bounds, upper_bounds)):
             n_values[:,:, :, i] = torch.where((Normalized_attentionscore > lb) & (Normalized_attentionscore <= ub), 1, 0).sum(dim=-1)
         # Define multipliers  as a tensor
-        multipliers = torch.tensor([ np.exp(-0.25), np.exp(-.75), np.exp(-1.25),np.exp(-1.75),np.exp(-2.25),np.exp(-2.75),np.exp(-3.25),
-                                   np.exp(-3.75), np.exp(-4.25),np.exp(-4.75), np.exp(-5.25),np.exp(-5.75)])
+        # Create a new tensor with doubled values
+
+new_multipliers = torch.tensor([
+    np.exp(-0.125),
+    np.exp(-0.375),  
+    np.exp(-0.625), 
+    np.exp(-0.875), 
+    np.exp(-1.125),  
+    np.exp(-1.375),  
+    np.exp(-1.625),  
+    np.exp(-1.875),  
+    np.exp(-2.125), 
+    np.exp(-2.375),  
+    np.exp(-2.625),  
+    np.exp(-2.875), 
+    np.exp(-3.125),   
+    np.exp(-3.375),
+    np.exp(-3.625),
+    np.exp(-3.875),
+    np.exp(-4.125),
+    np.exp(-4.375),
+    np.exp(-4.625),
+    np.exp(-4.875),
+    np.exp(-5.125),
+    np.exp(-5.375),
+    np.exp(-5.625),
+    np.exp(-5.875),
+    np.exp(-6),
+])
         
         # Perform element-wise multiplication across the last dimension (bins)
         weighted_n_values = n_values * multipliers
