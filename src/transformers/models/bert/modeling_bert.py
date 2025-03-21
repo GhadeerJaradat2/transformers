@@ -400,11 +400,10 @@ class BertSelfAttention(nn.Module):
         Normalized_attentionscore=attention_scores-MaxValues
         # Define the bounds for the ranges
         # Define the bounds for the ranges
-        lower_bounds = torch.tensor([-0.5, -1.0, -1.5, -2.0, -2.5, -3.0, 
-                                     -3.5, -4.0, -4.5, -5.0, -5.5,-25])
+        upper_bounds = torch.tensor([ 0,    -.5, -1.0, -1.5, -2.0, -2.5, -3.0,  -3.5, -4.0, -4.5, -5.0])
+        lower_bounds = torch.tensor([-0.5, -1.0, -1.5, -2.0, -2.5, -3.0, -3.5,  -4.0, -4.5, -5.0, -25])
         
-        upper_bounds = torch.tensor([ 0,    -.5, -1.0, -1.5, -2.0, -2.5, 
-                             -3.0,  -3.5, -4.0, -4.5, -5.0, -5.5])
+        
 
         # Prepare an empty tensor to store the bin counts for each range per row
         n_values = torch.zeros((Normalized_attentionscore.shape[0], Normalized_attentionscore.shape[1], Normalized_attentionscore.shape[2], len(lower_bounds))    )
