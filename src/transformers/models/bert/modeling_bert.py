@@ -400,8 +400,8 @@ class BertSelfAttention(nn.Module):
         Normalized_attentionscore=attention_scores-MaxValues
         # Define the bounds for the ranges
         # Define the bounds for the ranges
-        upper_bounds = torch.tensor([ 0,    -.5, -1.0, -1.5, -2.0, -2.5, -3.0,  ])
-        lower_bounds = torch.tensor([-0.5, -1.0, -1.5, -2.0, -2.5, -3.0,   -25])
+        upper_bounds = torch.tensor([ 0,    -.5, -1.0, -1.5, -2.0, -2.5,  ])
+        lower_bounds = torch.tensor([-0.5, -1.0, -1.5, -2.0, -2.5, -25])
         
         
 
@@ -411,7 +411,7 @@ class BertSelfAttention(nn.Module):
         for i, (lb, ub) in enumerate(zip(lower_bounds, upper_bounds)):
             n_values[:,:, :, i] = torch.where((Normalized_attentionscore > lb) & (Normalized_attentionscore <= ub), 1, 0).sum(dim=-1)
         # Define multipliers  as a tensor
-        multipliers = torch.tensor([ np.exp(-0.25), np.exp(-.75), np.exp(-1.25),np.exp(-1.75),np.exp(-2.25),np.exp(-2.75),np.exp(-3.25)])
+        multipliers = torch.tensor([ np.exp(-0.25), np.exp(-.75), np.exp(-1.25),np.exp(-1.75),np.exp(-2.25),np.exp(-2.75)])
         
         # Perform element-wise multiplication across the last dimension (bins)
         weighted_n_values = n_values * multipliers
