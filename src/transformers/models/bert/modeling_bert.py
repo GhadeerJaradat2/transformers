@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+print("softmax iterate input, changable step size")
 """PyTorch BERT model."""
 from transformers.models.bert import HyperParameters
 import numpy as np
