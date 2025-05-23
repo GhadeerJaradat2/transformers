@@ -15,7 +15,7 @@
 # limitations under the License.
 #statring the Third contribution implementation 23/5/2025
 """PyTorch BERT model."""
-print("TEST")
+print("Third Contribution")
 from transformers.models.bert import HyperParameters
 import numpy as np
 import time
