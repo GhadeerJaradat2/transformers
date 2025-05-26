@@ -423,11 +423,18 @@ class BertSdpaSelfAttention(BertSelfAttention):
             dropout_p=self.dropout_prob if self.training else 0.0,
             is_causal=is_causal,
         )
-
+        print("**************************")
+        print("key_layer, query_layer, value_layer shape")
+        print(key_layer.shape)
+        print(query_layer.shape)
+        print(value_layer.shape)
         attn_output = attn_output.transpose(1, 2)
         attn_output = attn_output.reshape(bsz, tgt_len, self.all_head_size)
 
         outputs = (attn_output,)
+        print("**************************")
+        print("outputs shape")
+        print(outputs.shape)
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
         return outputs
