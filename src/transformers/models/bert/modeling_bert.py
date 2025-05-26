@@ -184,6 +184,8 @@ class BertEmbeddings(nn.Module):
             embeddings += position_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
+        print("embeddings")
+        print(embeddings)
         return embeddings
 
 
