@@ -184,8 +184,8 @@ class BertEmbeddings(nn.Module):
             embeddings += position_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
-        print("embeddings")
-        print(embeddings)
+        print("embeddings dimension")
+        print(embeddings.shape)
         return embeddings
 
 
@@ -268,7 +268,9 @@ class BertSelfAttention(nn.Module):
             # can concat previous decoder key/value_states to current projected key/value_states (third "elif" case)
             # if encoder bi-directional self-attention `past_key_value` is always `None`
             past_key_value = (key_layer, value_layer)
-
+        print("-------------------------------")
+        print("KEY dimension, query dimension")
+        print(key_layer.shape, query_layer.shape)
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
 
@@ -293,7 +295,9 @@ class BertSelfAttention(nn.Module):
                 relative_position_scores_query = torch.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
                 relative_position_scores_key = torch.einsum("bhrd,lrd->bhlr", key_layer, positional_embedding)
                 attention_scores = attention_scores + relative_position_scores_query + relative_position_scores_key
-
+        print("**************************")
+        print("attention_scores shape")
+        print(attention_scores.shape)
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
@@ -311,13 +315,18 @@ class BertSelfAttention(nn.Module):
             attention_probs = attention_probs * head_mask
 
         context_layer = torch.matmul(attention_probs, value_layer)
-
+        print("**************************")
+        print("value_layer shape")
+        print(value_layer.shape)
+        
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(new_context_layer_shape)
 
         outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
-
+        print("**************************")
+        print("outputs shape")
+        print(outputs.shape)
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
         return outputs
