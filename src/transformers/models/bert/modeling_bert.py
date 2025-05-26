@@ -430,13 +430,17 @@ class BertSdpaSelfAttention(BertSelfAttention):
         print(value_layer.shape)
         attn_output = attn_output.transpose(1, 2)
         attn_output = attn_output.reshape(bsz, tgt_len, self.all_head_size)
-
-        outputs = (attn_output,)
         print("**************************")
-        print("outputs shape")
-        print(outputs.shape)
+        print("attn_output shape")
+        print(attn_output)
+        
+        outputs = (attn_output,)
+        
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
+        print("**************************")
+        print("outputs shape")
+        print(len(outputs))
         return outputs
 
 
