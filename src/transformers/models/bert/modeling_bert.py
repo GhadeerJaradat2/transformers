@@ -432,7 +432,7 @@ class BertSdpaSelfAttention(BertSelfAttention):
         attn_output = attn_output.reshape(bsz, tgt_len, self.all_head_size)
         print("**************************")
         print("attn_output shape")
-        print(attn_output)
+        print(attn_output.shape)
         
         outputs = (attn_output,)
         
