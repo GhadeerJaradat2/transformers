@@ -14,8 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """PyTorch BERT model."""
+Totalsum=0
+TotalCounts=0
 
+MSBFirstround=0
 import math
+import time
 import os
 import warnings
 from dataclasses import dataclass
@@ -26,7 +30,7 @@ import torch.utils.checkpoint
 from packaging import version
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-
+from transformers.models.bert import HyperParameters
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask_for_sdpa, _prepare_4d_causal_attention_mask_for_sdpa
@@ -184,6 +188,13 @@ class BertEmbeddings(nn.Module):
             embeddings += position_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
+        
+        #change #1
+        #Convert the embedings to FIxed point INT 16
+        
+        embeddings=torch.round(embeddings*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        embeddings=torch.clip(embeddings,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
         return embeddings
 
 
@@ -218,7 +229,1205 @@ class BertSelfAttention(nn.Module):
         new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
         return x.permute(0, 2, 1, 3)
+    def compute_importance_l1(self, key_layer):
+        # torch.cuda.synchronize()  # Wait for all prior GPU tasks to finish
+        # start = time.time()
+        """L1 norm across feature dimension"""
+        # print("key_layer")
+        # print(key_layer)
+        # key_layer: [B, 12, n, 64]
+        # x1 = key_layer.unsqueeze(3)         # [B, 12, n, 1, 64]
+        # x2 = key_layer.unsqueeze(2)         # [B, 12, 1, n, 64]
+        # l1 = torch.sum(torch.abs(x1 - x2), dim=-1)  # [B, 12, n, n]
+        #another way to implemant the same code
+        B, H, n, d = key_layer.shape
+        # Reshape to [B*H, n, d] for cdist, then reshape back
+        key_flat = key_layer.reshape(B * H, n, d)
+        l1 = torch.cdist(key_flat, key_flat, p=1)   # [B*H, n, n]
+        l1 = l1.reshape(B, H, n, n)
+        # torch.cuda.synchronize()  # Wait for matmul to finish
+        # end = time.time() 
+        # print("time in 'Compute_importance_LI' Fun =")
+        # print(f"Time on GPU: {end - start:.6f} seconds")
+        return l1
+    def compute_importance_Normalized_l1(self, key_layer):
+        # Normalize along feature dimension (L1 normalization)
+        key_layer = key_layer / (torch.sum(torch.abs(key_layer), dim=-1, keepdim=True) + 1e-8)
+        """L1 norm across feature dimension"""
+        # key_layer: [B, 12, n, 64]
+        x1 = key_layer.unsqueeze(3)         # [B, 12, n, 1, 64]
+        x2 = key_layer.unsqueeze(2)         # [B, 12, 1, n, 64]
+        l1 = torch.sum(torch.abs(x1 - x2), dim=-1)  # [B, 12, n, n]
+        return l1
+    def compute_importance_l2(self, key_layer):
+        # key_layer: [B, 12, n, 64]
+        x1 = key_layer.unsqueeze(3)         # [B, 12, n, 1, 64]
+        x2 = key_layer.unsqueeze(2)         # [B, 12, 1, n, 64]
+        l2 = torch.norm(x1 - x2, dim=-1)    # [B, 12, n, n]
+        return l2
+    
+    def hard_leader_from_distance(self,dist,tau,keep_diag: bool = True):
+        """
+        hard-Leader clustering driven directly by an L1-distance matrix.
 
+        Parameters
+        ----------
+        dist : Tensor  [n, n]
+            Pair-wise (symmetric) distance matrix.
+        tau  : float
+            Threshold – two tokens are considered “close” if dist <= tau.
+        keep_diag : bool
+            • If True  (default) we force the diagonal to be `True`
+              so every token is always in its own row-cluster.
+            • If False, self-edges are treated the same as any other entry.
+
+        Returns
+        -------
+        clusters : list[list[int]]
+            Greedy (order-dependent) clusters.
+            A token appears in the first cluster whose leader row reaches it.
+        """
+        # torch.cuda.synchronize()  # Wait for all prior GPU tasks to finish
+        # start = time.time()
+       #1.  Build mask  (True ⇔ distance ≤ tau)
+        # print("dist.shape",dist.shape)
+        mask = (dist <= tau)
+        # print("mask",mask)
+        
+        B, H, n, _ = mask.shape
+        clusters_by_head = []                      # <- final nested list
+
+        for b in range(B):                         # outer loop over batches
+            batch_list = []                        # will collect H heads
+            for h in range(H):                     # 12 heads in ViT/BERT
+                slice_mask = mask[b, h]            # [n, n] for this head
+                visited    = torch.zeros(n, dtype=torch.bool, device=mask.device)
+                clusters   = []                    # clusters for this head
+                # Always cluster CLS (first token) alone
+                clusters.append([0])
+                visited[0] = True
+                
+                # ---- greedy row scan ----
+                for i in range(n):
+                    if visited[i]:
+                        continue                   # token i already placed
+                    members = torch.where(slice_mask[i]& ~visited)[0]
+                    # Remove 0 and n-1 from members if present
+                    members = members[(members != 0) & (members != n-1)]
+                    if len(members) > 0:
+                        clusters.append(members.tolist())
+                        visited[members] = True
+
+                # Always cluster SEP (last token) alone
+                clusters.append([n-1])
+                visited[n-1] = True
+
+                batch_list.append(clusters)        # one head done
+            clusters_by_head.append(batch_list)    # one batch done
+        # torch.cuda.synchronize()  # Wait for matmul to finish
+        # end = time.time() 
+        # print("time in 'hard_leader_from_distance' Fun =")
+        # print(f"Time on GPU: {end - start:.6f} seconds")
+        return clusters_by_head
+    
+    def hard_leader_from_distance_tensor(self,dist, tau, keep_diag: bool = True):
+        """
+        Perform hard-leader clustering based on L1 distance matrix.
+
+        Args:
+            dist: Tensor of shape [B, H, n, n] (batch, head, tokens, tokens)
+            tau: float threshold — connect tokens with distance ≤ tau
+            keep_diag: if True, keep self-connections for all tokens (not used in this code)
+
+        Returns:
+            clusters_tensor: Tensor of shape [B, H, max_num_clusters, max_cluster_size],
+                             where padded values are -1
+        """
+        torch.cuda.synchronize()  # Wait for all prior GPU tasks to finish
+        start = time.time()
+        mask = (dist <= tau)  # shape: [B, H, n, n]
+        B, H, n, _ = mask.shape
+
+        all_clusters = [[[] for _ in range(H)] for _ in range(B)]
+        max_num_clusters = 0
+        max_cluster_size = 0
+
+        for b in range(B):
+            for h in range(H):
+                slice_mask = mask[b, h]  # shape: [n, n]
+                visited = torch.zeros(n, dtype=torch.bool, device=mask.device)
+                clusters = []
+
+                # Cluster CLS token alone
+                clusters.append([0])
+                visited[0] = True
+
+                for i in range(n):
+                    if visited[i]:
+                        continue
+                    members = torch.where(slice_mask[i] & ~visited)[0]
+                    members = members[(members != 0) & (members != n - 1)]
+                    if len(members) > 0:
+                        clusters.append(members.tolist())
+                        visited[members] = True
+
+                # Cluster SEP token alone
+                clusters.append([n - 1])
+                visited[n - 1] = True
+
+                all_clusters[b][h] = clusters
+                max_num_clusters = max(max_num_clusters, len(clusters))
+                max_cluster_size = max(
+                    max_cluster_size,
+                    max(len(g) for g in clusters) if clusters else 0
+                )
+
+        # Create padded tensor with -1
+        clusters_tensor = torch.full(
+            (B, H, max_num_clusters, max_cluster_size),
+            fill_value=-1,
+            dtype=torch.long,
+            device=dist.device
+        )
+
+        for b in range(B):
+            for h in range(H):
+                for i, group in enumerate(all_clusters[b][h]):
+                    clusters_tensor[b, h, i, :len(group)] = torch.tensor(group, device=dist.device)
+        torch.cuda.synchronize()  # Wait for matmul to finish
+        end = time.time() 
+        print("time in 'hard_leader_from_distance_tensor' Fun =")
+        print(f"Time on GPU: {end - start:.6f} seconds")
+        return clusters_tensor
+    
+    
+    def union_find_labels(self,mask: torch.Tensor):
+        N = mask.size(0)
+        parent = torch.arange(N, device=mask.device)
+        def find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+        for i in range(N):
+            nbrs = torch.where(mask[i])[0]
+            for j in nbrs:
+                ri = find(i)
+                rj = find(j.item())
+                if ri != rj:
+                    parent[ri] = rj
+        for i in range(N):
+            parent[i] = find(i)
+        return parent
+
+    def cluster_one_graph(self,dist_slice: torch.Tensor, tau: float):
+        N = dist_slice.size(0)
+        mask = dist_slice <= tau
+        mask.fill_diagonal_(False)
+        mask[0, :] = mask[:, 0] = False
+        mask[N-1, :] = mask[:, N-1] = False
+        labels = self.union_find_labels(mask)
+        clusters = [[0]]
+        added = set([0, N-1])
+        for i in range(1, N-1):
+            if labels[i].item() == i and (mask[i].any()):
+                members = torch.where(labels == i)[0]
+                clusters.append(members.tolist())
+                added.update(members.tolist())
+        clusters.append([N-1])
+        maxC = len(clusters)
+        maxS = max(len(c) for c in clusters)
+        out = dist_slice.new_full((maxC, maxS), -1, dtype=torch.long)
+        for ci, grp in enumerate(clusters):
+            out[ci, :len(grp)] = torch.tensor(grp, device=dist_slice.device)
+        return out
+
+    def hard_leader_batched(self,dist: torch.Tensor, tau: float):
+        """
+        Batched clustering over [B, H, N, N], fully on GPU, but uses a for-loop over B and H.
+        """
+        # torch.cuda.synchronize()
+        # start = time.time()
+        B, H, N, _ = dist.shape
+        results = []
+        maxC, maxS = 0, 0
+        for b in range(B):
+            row = []
+            for h in range(H):
+                mat = self.cluster_one_graph(dist[b, h], tau)
+                row.append(mat)
+                maxC = max(maxC, mat.shape[0])
+                maxS = max(maxS, mat.shape[1])
+            results.append(row)
+        # Pad to tensor
+        out = dist.new_full((B, H, maxC, maxS), -1, dtype=torch.long)
+        for b in range(B):
+            for h in range(H):
+                mat = results[b][h]
+                out[b, h, :mat.shape[0], :mat.shape[1]] = mat
+        # torch.cuda.synchronize()
+        # end = time.time()
+        # print(f"[hard_leader_batched] Time on GPU: {end - start:.6f} seconds")
+        
+        return out
+    def hard_leader_vectorized(self, dist, tau, keep_diag: bool = True):
+        """
+        Vectorized version of hard-leader clustering using distance threshold.
+        This version is more GPU-friendly than the original, though not 100% vectorized.
+
+        Args:
+            dist: Tensor of shape [B, H, n, n]
+            tau: Threshold for connection
+            keep_diag: Whether to keep diagonal connections (not used)
+
+        Returns:
+            clusters_tensor: [B, H, max_num_clusters, max_cluster_size]
+        """
+        torch.cuda.synchronize()
+        start = time.time()
+
+        B, H, n, _ = dist.shape
+        device = dist.device
+
+        mask = (dist <= tau)
+
+        all_clusters = []
+        max_num_clusters = 0
+        max_cluster_size = 0
+
+        for b in range(B):
+            batch_clusters = []
+            for h in range(H):
+                slice_mask = mask[b, h].clone()
+                visited = torch.zeros(n, dtype=torch.bool, device=device)
+                clusters = []
+
+                # Cluster CLS token
+                clusters.append([0])
+                visited[0] = True
+
+                # Build clusters greedily
+                for i in range(1, n - 1):  # skip CLS/SEP
+                    if visited[i]:
+                        continue
+                    group = torch.where(slice_mask[i] & ~visited)[0]
+                    group = group[(group != 0) & (group != n - 1)]
+                    group = torch.cat([group, torch.tensor([i], device=device)])  # FIXED LINE
+                    group = torch.unique(group)
+                    visited[group] = True
+                    clusters.append(group.tolist())
+
+
+                # Cluster SEP token
+                clusters.append([n - 1])
+                visited[n - 1] = True
+
+                batch_clusters.append(clusters)
+                max_num_clusters = max(max_num_clusters, len(clusters))
+                max_cluster_size = max(
+                    max_cluster_size,
+                    max(len(c) for c in clusters) if clusters else 0
+                )
+            all_clusters.append(batch_clusters)
+
+        # Preallocate output tensor
+        clusters_tensor = torch.full(
+            (B, H, max_num_clusters, max_cluster_size),
+            fill_value=-1,
+            dtype=torch.long,
+            device=device
+        )
+
+        for b in range(B):
+            for h in range(H):
+                for i, group in enumerate(all_clusters[b][h]):
+                    clusters_tensor[b, h, i, :len(group)] = torch.tensor(group, device=device)
+
+        torch.cuda.synchronize()
+        end = time.time()
+        print(f"[Vectorized] Time on GPU: {end - start:.6f} seconds")
+        return clusters_tensor
+    def hard_leader_vectorized_deepSeek( self, dist, tau):
+    
+        """
+        Optimized GPU version of hard-leader clustering.
+        Identical logic to original CPU version, but 4-5x faster on GPU.
+        
+        Args:
+            dist: Tensor of shape [B, H, n, n] containing pairwise distances
+            tau: Threshold distance for cluster formation
+            
+        Returns:
+            clusters_tensor: Tensor of shape [B, H, max_clusters, max_cluster_size]
+                            with -1 padding for unused slots
+        """
+        torch.cuda.synchronize()
+        start = time.time()
+        B, H, n, _ = dist.shape
+        device = dist.device
+        
+        # Vectorized mask creation
+        mask = (dist <= tau)
+        
+        # Preallocate output tensor (conservative upper bounds)
+        max_possible_clusters = 2 * n  # Worst case: each token forms its own cluster
+        clusters_tensor = torch.full(
+            (B, H, max_possible_clusters, n),
+            fill_value=-1,
+            dtype=torch.long,
+            device=device
+        )
+        cluster_counts = torch.zeros(B, H, dtype=torch.long, device=device)
+
+        # Initialize CLS (0) and SEP (n-1) clusters (vectorized)
+        clusters_tensor[:, :, 0, 0] = 0
+        clusters_tensor[:, :, 1, 0] = n - 1
+        cluster_counts[:, :] = 2  # We've added 2 clusters (CLS and SEP)
+        
+        # Create visited mask
+        visited = torch.zeros(B, H, n, dtype=torch.bool, device=device)
+        visited[:, :, 0] = visited[:, :, -1] = True
+
+        # Main processing loop (sequential in tokens but parallel in batches/heads)
+        for i in range(1, n - 1):
+            # Find unprocessed tokens across all batches/heads
+            active = ~visited[:, :, i]
+            active_indices = torch.where(active)
+            
+            if len(active_indices[0]) == 0:
+                continue
+
+            # Process each active token
+            for b, h in zip(*active_indices):
+                # Find connected unvisited nodes (same logic as original)
+                neighbors = torch.where(mask[b, h, i] & ~visited[b, h])[0]
+                neighbors = neighbors[(neighbors != 0) & (neighbors != n - 1)]
+                
+                # Get next available cluster slot
+                c_idx = cluster_counts[b, h].item()
+                
+                if len(neighbors) > 0:
+                    # Create new cluster
+                    cluster = torch.cat([neighbors, torch.tensor([i], device=device)])
+                    clusters_tensor[b, h, c_idx, :len(cluster)] = cluster
+                    cluster_counts[b, h] += 1
+                    visited[b, h, cluster] = True
+                else:
+                    # Single-token cluster
+                    clusters_tensor[b, h, c_idx, 0] = i
+                    cluster_counts[b, h] += 1
+                    visited[b, h, i] = True
+
+        # Trim unused clusters
+        max_clusters = cluster_counts.max()
+        torch.cuda.synchronize()
+        end = time.time()
+        print(f"[--DEEP SEEK--] Time on GPU: {end - start:.6f} seconds")
+        return clusters_tensor[:, :, :max_clusters, :]
+   
+    def _process_clusters_kernel(self, mask, clusters_tensor, cluster_counts, n, device):
+        B, H, n, _ = mask.shape
+        
+        # Initialize CLS/SEP clusters
+        clusters_tensor[:, :, 0, 0] = 0
+        clusters_tensor[:, :, 1, 0] = n - 1
+        cluster_counts[:, :] = 2
+        visited = torch.zeros(B, H, n, dtype=torch.bool, device=device)
+        visited[:, :, 0] = visited[:, :, -1] = True
+        for i in range(1, n - 1):
+            active = ~visited[:, :, i]
+            active_indices = torch.where(active)
+            if len(active_indices[0]) == 0:
+                continue
+            for b, h in zip(*active_indices):
+                neighbors = torch.where(mask[b, h, i] & ~visited[b, h])[0]
+                neighbors = neighbors[(neighbors != 0) & (neighbors != n - 1)]
+                c_idx = cluster_counts[b, h].item()
+                if len(neighbors) > 0:
+                    cluster = torch.cat([neighbors, torch.tensor([i], device=device)])
+                    clusters_tensor[b, h, c_idx, :len(cluster)] = cluster
+                    cluster_counts[b, h] += 1
+                    visited[b, h, cluster] = True
+                else:
+                    clusters_tensor[b, h, c_idx, 0] = i
+                    cluster_counts[b, h] += 1
+                    visited[b, h, i] = True
+                
+
+    def hard_leader_gpu_DeepSeek2(self, dist, tau):
+        # torch.cuda.synchronize()
+        # start = time.time()
+        # DeepSeek2_total = torch.cuda.Event(enable_timing=True)
+        # DeepSeek2_stage1 = torch.cuda.Event(enable_timing=True)
+        # DeepSeek2_stage2 = torch.cuda.Event(enable_timing=True)
+        # DeepSeek2_stage3 = torch.cuda.Event(enable_timing=True)
+        # DeepSeek2_stage4 = torch.cuda.Event(enable_timing=True)
+        # DeepSeek2_stage5 = torch.cuda.Event(enable_timing=True)
+        # DeepSeek2_stage6 = torch.cuda.Event(enable_timing=True)
+        # DeepSeek2_total.record()
+        
+        B, H, n, _ = dist.shape
+        device = dist.device
+        # DeepSeek2_stage1.record()
+        mask = (dist <= tau)
+        max_possible_clusters = 2 * n
+        clusters_tensor = torch.full(
+            (B, H, max_possible_clusters, n),
+            fill_value=-1,
+            dtype=torch.long,
+            device=device
+        )
+        # DeepSeek2_stage2.record()
+        cluster_counts = torch.zeros(B, H, dtype=torch.long, device=device)
+        # DeepSeek2_stage3.record()
+        self._process_clusters_kernel(mask, clusters_tensor, cluster_counts, n, device)
+        # DeepSeek2_stage4.record()
+        
+        max_clusters = int(cluster_counts.max().item())
+        # DeepSeek2_stage5.record()
+        output = clusters_tensor[:, :, :max_clusters, :]
+        # DeepSeek2_stage6.record()
+        # torch.cuda.synchronize()
+        # end = time.time()
+        # print(f"[--DEEP SEEK2--] Time on GPU: {end - start:.6f} seconds")
+        # torch.cuda.synchronize()
+
+        # Print timings
+        # print(f"DeepSeek2_stage 1 time: {DeepSeek2_total.elapsed_time(DeepSeek2_stage1):.3f} ms")
+        # print(f"DeepSeek2_stage 2 time: {DeepSeek2_stage1.elapsed_time(DeepSeek2_stage2):.3f} ms")
+        # print(f"DeepSeek2_stage 3 time: {DeepSeek2_stage2.elapsed_time(DeepSeek2_stage3):.3f} ms")
+        # print(f"DeepSeek2_stage 4 time: {DeepSeek2_stage3.elapsed_time(DeepSeek2_stage4):.3f} ms")
+        # print(f"DeepSeek2_stage 5 time: {DeepSeek2_stage4.elapsed_time(DeepSeek2_stage5):.3f} ms")
+        # print(f"DeepSeek2_stage 6 time: {DeepSeek2_stage5.elapsed_time(DeepSeek2_stage6):.3f} ms")
+        
+        # print(f"Total time:   {DeepSeek2_total.elapsed_time(DeepSeek2_stage6):.3f} ms")
+        return output
+   
+    def process_clusters_kernel_deterministic(self,mask, clusters_tensor, cluster_counts):
+        B, H, n, _ = mask.shape
+        clusters_tensor[:, :, 0, 0] = 0
+        clusters_tensor[:, :, 1, 0] = n - 1
+        cluster_counts.fill_(2)
+        visited = torch.zeros((B, H, n), dtype=torch.bool, device=mask.device)
+        visited[:, :, 0] = visited[:, :, -1] = True
+        for i in range(1, n - 1):
+            active_b, active_h = torch.where(~visited[:, :, i])
+            order = torch.argsort(active_b * H + active_h)
+            active_b, active_h = active_b[order], active_h[order]
+            for b, h in zip(active_b.tolist(), active_h.tolist()):
+                neigh = torch.where(mask[b, h, i] & ~visited[b, h])[0]
+                neigh = neigh[(neigh != 0) & (neigh != n - 1)]
+                c_idx = cluster_counts[b, h].item()
+                if neigh.numel():
+                    cluster = torch.cat((neigh, torch.tensor([i], device=mask.device)))
+                    clusters_tensor[b, h, c_idx, :cluster.numel()] = cluster
+                    visited[b, h, cluster] = True
+                else:
+                    clusters_tensor[b, h, c_idx, 0] = i
+                    visited[b, h, i] = True
+                cluster_counts[b, h] += 1
+
+    def hard_leader_gpu_deepseek2_deterministic(self,dist, tau):
+        B, H, n, _ = dist.shape
+        device = dist.device
+        mask = dist <= tau
+        clusters_tensor = torch.full((B, H, 2 * n, n), -1, dtype=torch.long, device=device)
+        cluster_counts = torch.zeros((B, H), dtype=torch.long, device=device)
+        self.process_clusters_kernel_deterministic(mask, clusters_tensor, cluster_counts)
+        return clusters_tensor, cluster_counts
+# ------------------------------------------------------------------
+
+   
+   
+    def apply_clustered_row_averaging(self, x, clusters):
+ 
+        """
+        Applies row-averaging over clusters using fast, vectorized GPU ops.
+        
+        Args:
+            x: Tensor of shape [B, C, n, n] on GPU
+            clusters: list of lists of lists [B][C][num_clusters][indices]
+
+        Returns:
+            Averaged tensor of same shape as x
+        """
+        # torch.cuda.synchronize()  # Wait for all prior GPU tasks to finish
+        # start = time.time()
+        B, C, n, _ = x.shape
+        device = x.device
+        out = x.clone()
+
+        for b in range(B):
+            for c in range(C):
+                mat = x[b, c]  # [n, n]
+                out_mat = out[b, c]
+                
+                # Preallocate buffers
+                summed = torch.zeros_like(mat)
+                counts = torch.zeros(n, device=device)
+
+                for group in clusters[b][c]:
+                    idx = torch.tensor(group, device=device, dtype=torch.long)
+                    if idx.numel() == 0:
+                        continue
+                    mean_row = mat.index_select(0, idx).mean(dim=0)
+                    summed.index_add_(0, idx, mean_row.expand(idx.size(0), -1))
+                    counts.index_add_(0, idx, torch.ones_like(idx, dtype=counts.dtype))
+
+                # Avoid division by zero
+                nonzero = counts > 0
+                out_mat[nonzero] = summed[nonzero] / counts[nonzero].unsqueeze(1)
+        # torch.cuda.synchronize()  # Wait for matmul to finish
+        # end = time.time() 
+        # print("time in 'apply_clustered_row_averaging' Fun =")
+        # print(f"Time on GPU: {end - start:.6f} seconds")
+        return out
+    def apply_clustered_row_averaging_vectorized(self,x, clusters):
+        
+        """
+        Vectorized version: averages over token rows in each cluster.
+
+        Args:
+            x: Tensor of shape [B, H, T, D]
+            clusters: LongTensor of shape [B, H, num_clusters, cluster_size], padded with -1
+
+        Returns:
+            out: Tensor of same shape as x, where clustered rows have been averaged
+        """
+        # torch.cuda.synchronize()  # Wait for all prior GPU tasks to finish
+        # start = time.time()
+        assert x.ndim == 4, f"x must be [B, H, T, D], got {x.shape}"
+        assert clusters.ndim == 4, f"clusters must be [B, H, num_clusters, k], got {clusters.shape}"
+
+        B, H, T, D = x.shape
+        _, _, num_clusters, k = clusters.shape
+        device = x.device
+
+        x_flat = x.reshape(B * H, T, D)
+        clusters_flat = clusters.reshape(B * H, num_clusters, k)
+        mask = clusters_flat != -1                                # valid entries
+        clusters_safe = clusters_flat.clamp(min=0)
+
+        # Build flat index selectors
+        bc_indices = torch.arange(B * H, device=device).view(-1, 1, 1).expand(-1, num_clusters, k)
+        selected_rows = x_flat[bc_indices, clusters_safe]         # [BH, num_clusters, k, D]
+        selected_rows = selected_rows * mask.unsqueeze(-1)        # zero out invalid rows
+
+        # Compute means
+        summed = selected_rows.sum(dim=2)                         # [BH, num_clusters, D]
+        counts = mask.sum(dim=2).clamp(min=1).unsqueeze(-1)       # [BH, num_clusters, 1]
+        mean_rows = summed / counts                               # [BH, num_clusters, D]
+
+        # Repeat mean rows back to original cluster locations
+        repeated_means = mean_rows.unsqueeze(2).expand(-1, -1, k, -1)  # [BH, num_clusters, k, D]
+        flat_rows = repeated_means[mask]                               # [N, D]
+        flat_targets = clusters_safe[mask]                             # [N]
+        flat_bc = bc_indices[mask]                                     # [N]
+
+        # Write averaged rows
+        out_flat = x_flat.clone()
+        out_flat.index_put_((flat_bc, flat_targets), flat_rows, accumulate=False)
+
+        # Reshape back to [B, H, T, D]
+        # torch.cuda.synchronize()  # Wait for matmul to finish
+        # end = time.time() 
+        # print("time in 'apply_clustered_row_averaging_vectorized' Fun =")
+        # print(f"Time on GPU: {end - start:.6f} seconds")
+        return out_flat.view(B, H, T, D)
+
+
+    
+    def clustering_stats(self, clusters_batch):
+        # torch.cuda.synchronize()  # Wait for all prior GPU tasks to finish
+        # start = time.time()
+        total_clustered_count = 0
+        total_original_count = 0
+        # print("clusters_batch",clusters_batch)
+        for batch in clusters_batch:
+            for channel_clusters in batch:
+                all_indices = [i for group in channel_clusters for i in group]
+                n = len(set(all_indices))  # counts unique indices, i.e. number of surviving/pruned rows
+                n_clusters = len(channel_clusters)
+                total_original_count += n
+                total_clustered_count += n_clusters
+                # print("set(all_indices)",set(all_indices))
+                # print("n",n)
+                # print("n_clusters",n_clusters)
+        # torch.cuda.synchronize()  # Wait for matmul to finish
+        # end = time.time() 
+        # print("time in 'clustering_stats' Fun =")
+        # print(f"Time on GPU: {end - start:.6f} seconds")
+        return total_clustered_count, total_original_count
+   
+
+
+    def avg_unique_nonpad(self, x: torch.Tensor, pad_val: int = -1):
+        """
+        Average number of unique non-pad values per row/tensor,
+        skipping rows that are fully pad OR that have only a single unique non-pad value.
+        """
+        # Flatten all but the last dimension (treat each last-dim row as one 'tensor')
+        rows = x.reshape(-1, x.size(-1))
+
+        counts = []
+        for row in rows:
+            valid = row[row != pad_val]          # drop pads
+            if valid.numel() == 0:
+                continue                         # skip fully padded rows
+            uniq = torch.unique(valid)
+            if uniq.numel() <= 1:
+                continue                         # skip rows with only one unique non-pad value
+            counts.append(int(uniq.numel()))
+        global Totalsum
+        global TotalCounts
+        
+        Totalsum+= sum(counts)
+        TotalCounts+= len(counts)
+        
+        print("Totalsum",Totalsum)
+        print("TotalCounts",TotalCounts)
+        
+        
+        return float(sum(counts) / len(counts)) if counts else 0.0
+       
+        
+        
+        
+        
+    
+    def dedup_per_row(self,x: torch.Tensor, pad_val: int = -1, dim: int = -1) -> torch.Tensor:
+        """
+        Remove duplicates within each row along `dim` without loops.
+        Keeps the same shape by left-compacting uniques and padding with `pad_val`.
+
+        x: LongTensor with padding == pad_val (e.g., -1). Shape [..., L] along `dim`.
+        """
+        # Move the target dim to last
+        x_perm = x.transpose(dim, -1).contiguous()          # [..., L]
+        *batch, L = x_perm.shape
+        flat = x_perm.view(-1, L)                           # [N, L]
+
+        # Mark valid entries and push pads to a large value so they sort to the end
+        valid = flat != pad_val
+        maxv = torch.iinfo(flat.dtype).max
+        tmp = flat.masked_fill(~valid, maxv)
+
+        # Row-wise sort => duplicates become consecutive; pads at the end
+        sorted_vals, _ = torch.sort(tmp, dim=1)
+
+        # Identify pads and duplicates (equal to previous element)
+        is_pad = (sorted_vals == maxv)
+        dup = torch.zeros_like(sorted_vals, dtype=torch.bool)
+        dup[:, 1:] = (sorted_vals[:, 1:] == sorted_vals[:, :-1])
+
+        # Keep only first occurrence of each value (and never keep pads)
+        keep = (~dup) & (~is_pad)
+
+        # Compute target positions for the kept elements (0..k-1 per row)
+        pos = keep.cumsum(dim=1) - 1                        # -1 where keep==False
+
+        # Scatter kept values into compacted output, pad the rest
+        out = torch.full_like(sorted_vals, pad_val)
+        rows = torch.arange(out.size(0), device=out.device).unsqueeze(1).expand_as(out)
+        out[rows[keep], pos[keep]] = sorted_vals[keep]
+
+        # Restore original shape and dim order
+        out = out.view(*batch, L)
+        out = out.transpose(dim, -1).contiguous()
+        return out
+
+    def clustering_stats_vectorized(self,clusters):
+        """
+        Computes clustering stats from padded tensor.
+
+        Args:
+            clusters: LongTensor of shape [B, C, num_clusters, cluster_size], with -1 padding
+
+        Returns:
+            total_clustered_count: Total number of non-empty clusters
+            total_original_count: Total number of unique token indices across all clusters
+        """
+        # torch.cuda.synchronize()  # Wait for all prior GPU tasks to finish
+        # start = time.time()
+        # print("clusters",clusters)
+        #remove duplications in rows
+        clusters=self.dedup_per_row(clusters)
+        B, C, num_clusters, cluster_size = clusters.shape
+        device = clusters.device
+        # print("B, C, num_clusters",B, C, num_clusters)
+        # Step 1: Flatten cluster structure
+        flat_clusters = clusters.view(-1, cluster_size)  # [B*C*num_clusters, cluster_size]
+        # print("flat_clusters",flat_clusters)
+        # Step 2: Mask valid indices
+        valid_mask = flat_clusters != -1
+        valid_indices = flat_clusters[valid_mask]  # [N]
+        # print("valid_indices",valid_indices)
+        # Step 3: Count non-pad entries (i.e., just how many values remain)
+        total_original_count = int(valid_indices.numel())               # simplest   
+
+        # print("total_original_count",total_original_count)
+
+        # Step 4: Count non-empty clusters (rows with any valid index)
+        non_empty_clusters = valid_mask.any(dim=1)  # [B*C*num_clusters]
+        total_clustered_count = non_empty_clusters.sum().item()
+        # print("non_empty_clusters",non_empty_clusters)
+        # print("total_clustered_count",total_clustered_count)
+        # exit
+        # torch.cuda.synchronize()  # Wait for matmul to finish
+        # end = time.time() 
+        # print("time in 'clustering_stats_vectorized' Fun =")
+        # print(f"Time on GPU: {end - start:.6f} seconds")
+        return total_clustered_count, total_original_count
+    
+    def filter_clusters_by_zero_indices(self,clusters, mask):
+        # torch.cuda.synchronize()  # Wait for all prior GPU tasks to finish
+        # start = time.time()
+        mask  = mask.any(dim=-1)  # shape: [1, 12, 12]
+        # print("mask inside filter_clusters_by_zero_indices", mask)
+        B, H, n = mask.shape
+        filtered_clusters = []
+        for b in range(B):
+            batch_clusters = []
+            for h in range(H):
+                head_clusters = []
+                for group in clusters[b][h]:
+                    # Only keep indices where mask == True
+                    kept_group = [idx for idx in group if mask[b, h, idx]]
+                    if kept_group:  # skip empty clusters
+                        head_clusters.append(kept_group)
+                batch_clusters.append(head_clusters)
+            filtered_clusters.append(batch_clusters)
+        # torch.cuda.synchronize()  # Wait for matmul to finish
+        # end = time.time() 
+        # print("time in 'filter_clusters_by_zero_indices' Fun =")
+        # print(f"Time on GPU: {end - start:.6f} seconds")
+        return filtered_clusters
+       
+
+    
+    def filter_clusters_by_zero_indices_vectorized(self,clusters, mask):
+
+        """
+        Fully vectorized version (no Python loops).
+        Filters out invalid indices from clusters using a mask.
+
+        Args:
+            clusters: LongTensor of shape [B, H, num_clusters, cluster_size] with -1 padding
+            mask: BoolTensor of shape [B, H, n] or [B, H, n, k]
+
+        Returns:
+            new_filtered: LongTensor of shape [B, H, max_kept_clusters, cluster_size] with -1 padding
+        """
+        # torch.cuda.synchronize()  # Wait for all prior GPU tasks to finish
+        # start = time.time()
+        B, H, num_clusters, cluster_size = clusters.shape
+        device = clusters.device
+
+        # Step 0: Handle 4D mask case
+        if mask.ndim == 4:
+            mask = mask.any(dim=-1)  # reduce to [B, H, n]
+
+        # Step 1: Clamp -1 indices for safe indexing
+        valid_mask = clusters >= 0
+        clamped_clusters = clusters.clamp(min=0)  # [B, H, num_clusters, cluster_size]
+
+        # Step 2: Gather validity of each index from mask
+        # mask: [B, H, n] → [B, H, num_clusters, n]
+        mask_expanded = mask.unsqueeze(2).expand(-1, -1, num_clusters, -1)
+        index_mask = torch.gather(mask_expanded, 3, clamped_clusters)  # [B, H, num_clusters, cluster_size]
+
+        # Step 3: Combine with padding mask
+        combined_mask = valid_mask & index_mask
+        filtered = clusters.masked_fill(~combined_mask, -1)  # Set all invalid entries to -1
+
+        # Step 4: Identify non-empty clusters
+        cluster_nonempty = (filtered != -1).any(dim=-1)  # [B, H, num_clusters]
+        max_clusters = cluster_nonempty.sum(dim=-1).max().item()  # scalar
+
+        # Step 5: Flatten [B, H] → [B*H]
+        filtered_flat = filtered.view(B * H, num_clusters, cluster_size)
+        cluster_nonempty_flat = cluster_nonempty.view(B * H, num_clusters)
+
+        # Step 6: Get indices of non-empty clusters
+        keep_idx = cluster_nonempty_flat.nonzero(as_tuple=False)  # [K, 2]
+        batch_head_idx = keep_idx[:, 0]
+        cluster_idx = keep_idx[:, 1]
+
+        # Step 7: Allocate new padded tensor
+        new_filtered = torch.full(
+            (B * H, max_clusters, cluster_size),
+            fill_value=-1,
+            dtype=torch.long,
+            device=device
+        )
+
+        # Step 8: Scatter clusters to new padded output (still looped, but vector-safe)
+        insert_pos = torch.zeros(B * H, dtype=torch.long, device=device)
+        for i in range(len(keep_idx)):
+            bh = batch_head_idx[i]
+            idx = insert_pos[bh].item()
+            new_filtered[bh, idx] = filtered_flat[bh, cluster_idx[i]]
+            insert_pos[bh] += 1
+
+        # Step 9: Reshape back to [B, H, max_kept_clusters, cluster_size]
+        # torch.cuda.synchronize()  # Wait for matmul to finish
+        # end = time.time() 
+        # print("time in 'filter_clusters_by_zero_indices_vectorized' Fun =")
+        # print(f"Time on GPU: {end - start:.6f} seconds")
+        return new_filtered.view(B, H, max_clusters, cluster_size)
+    
+   
+
+    def filter_clusters_by_zero_indices_vectorized_noLOOP(self,clusters, mask):
+        """
+        GPU-optimized, loop-free version of cluster filtering using torch.scatter.
+        
+        Args:
+            clusters: LongTensor [B, H, num_clusters, cluster_size] with -1 padding
+            mask:     BoolTensor [B, H, n] or [B, H, n, k]
+            
+        Returns:
+            new_filtered: LongTensor [B, H, max_kept_clusters, cluster_size] with -1 padding
+        """
+        # torch.cuda.synchronize()  # Wait for prior GPU ops
+        # start = time.time()
+        
+        B, H, num_clusters, cluster_size = clusters.shape
+        device = clusters.device
+
+        # Step 0: Collapse 4D mask if needed
+        if mask.ndim == 4:
+            mask = mask.any(dim=-1)  # [B, H, n]
+
+        # Step 1: Clamp invalid indices and cast to long
+        valid_mask = clusters >= 0
+        clamped_clusters = clusters.clamp(min=0).long()
+
+        # Step 2: Gather mask values for indices in each cluster
+        mask_expanded = mask.unsqueeze(2).expand(-1, -1, num_clusters, -1)
+        index_mask = torch.gather(mask_expanded, 3, clamped_clusters)
+
+        # Step 3: Apply filtering
+        combined_mask = valid_mask & index_mask
+        filtered = clusters.masked_fill(~combined_mask, -1).long()
+
+        # Step 4: Identify non-empty clusters
+        cluster_nonempty = (filtered != -1).any(dim=-1)  # [B, H, num_clusters]
+        num_kept = cluster_nonempty.sum(dim=-1)          # [B, H]
+        max_clusters = num_kept.max().item()
+
+        # Step 5: Flatten for scatter operation
+        BH = B * H
+        filtered_flat = filtered.view(BH, num_clusters, cluster_size)
+        nonempty_flat = cluster_nonempty.view(BH, num_clusters)
+
+        # Step 6: Gather non-empty indices
+        keep_idx = nonempty_flat.nonzero(as_tuple=False)  # [K, 2]
+        bh_indices = keep_idx[:, 0]
+        cluster_indices = keep_idx[:, 1]
+
+        # Step 7: Determine insert positions
+        insert_counts = torch.bincount(bh_indices, minlength=BH)
+        insert_positions = torch.cat([
+            torch.arange(n, device=device) if n > 0 else torch.empty(0, dtype=torch.long, device=device)
+            for n in insert_counts.tolist()
+        ])
+
+        # Step 8: Scatter filtered values into new padded tensor
+        new_filtered = torch.full(
+            (BH, max_clusters, cluster_size),
+            -1,
+            dtype=torch.long,
+            device=device
+        )
+        new_filtered[bh_indices, insert_positions] = filtered_flat[bh_indices, cluster_indices]
+
+        # Step 9: Reshape to original batch layout
+        # torch.cuda.synchronize()
+        # end = time.time()
+        # print("time in 'filter_clusters_by_zero_indices_vectorized_noLOOP' =", f"{end - start:.6f} seconds")
+
+        return new_filtered.view(B, H, max_clusters, cluster_size)
+
+    def Prune_Query(self, Query_layer):
+        
+        # print("Query_layer shape",Query_layer.shape)
+        # print("Query_layer ",Query_layer)
+        #get the integer part of the Query_layer
+        Query_layer_MSB = Query_layer/2**MSBFirstround
+        Query_layer_MSB = torch.trunc(Query_layer_MSB)
+        # print("Query_layer_MSB ",Query_layer_MSB)
+        Query_layer_Fractions = Query_layer - Query_layer_MSB
+        
+        #get MSBits
+        # msbN = torch.floor(Query_layer_MSB / 2**HyperParameters.MSBits )
+        # print("msbN ",msbN)
+        
+        msbN = Query_layer
+        
+        
+        
+        s_mean = msbN.mean(dim=-1, keepdim=True)   # [B,H,N,1]
+        s_max  = msbN.amax(dim=-1, keepdim=True)   # [B,H,N,1]
+        s_min  = msbN.amin(dim=-1, keepdim=True)   # [B,H,N,1]
+        # print("s_mean ",s_mean)
+        # print("s_max ",s_max)
+        # print("s_min ",s_min)
+        
+        #To find the Query pruning threshold
+        # print("HyperParameters.QueryPrRatio",HyperParameters.QueryPrRatio)
+        if( HyperParameters.QueryPrRatio>=0 and HyperParameters.QueryPrRatio<=1):
+            threshold=torch.add(torch.mul(s_max,HyperParameters.QueryPrRatio) , (torch.mul(s_mean,(1-HyperParameters.QueryPrRatio)) ))
+        elif ( HyperParameters.QueryPrRatio>=-1 and HyperParameters.QueryPrRatio<0 ):
+            threshold=torch.add(torch.mul(s_min,-HyperParameters.QueryPrRatio) ,(torch.mul(s_mean,(1+HyperParameters.QueryPrRatio))))
+        # print("threshold ",threshold)    
+               
+            
+        mask_keep = msbN >= threshold
+        
+        mask_keep[:, :, 0]  = True   # keep CLS
+        mask_keep[:, :, -1] = True   # keep SEP
+        # print("mask_keep ",mask_keep)
+        pruned = Query_layer * mask_keep.to(Query_layer.dtype)
+        # print("pruned ",pruned)
+        return pruned 
+        
+    def Prune_Query_N_M(self, Query_layer, n_per_block: int = 1, block_size: int = 8):
+        """
+        Drop the n smallest values per block (contiguous chunks of `block_size`)
+        along the last dimension. Keeps [CLS]=idx 0 and [SEP]=idx -1.
+    
+        Args:
+            Query_layer: tensor [..., N] (e.g., [B, H, N]); N must be multiple of block_size.
+            n_per_block: how many smallest values to drop *per block* (e.g., 1, 2, 3).
+            block_size:  block width (default 8).
+        Returns:
+            pruned: tensor of same shape as Query_layer with dropped entries zeroed.
+        """
+        
+        block_size = HyperParameters.QueryBlock
+        n_per_block = HyperParameters.n_per_Queryblock
+        # print("Query_layer",Query_layer)
+        
+        
+        # Query_layer_MSB = Query_layer/2**MSBFirstround
+        # Query_layer_MSB = torch.trunc(Query_layer_MSB)
+        # # print("Query_layer_MSB ",Query_layer_MSB)
+        # Query_layer_Fractions = Query_layer - Query_layer_MSB
+        
+        #get MSBits
+        # msbN = torch.floor(Query_layer_MSB / 2**HyperParameters.MSBits )
+        # print("msbN ",msbN)
+        
+        #msbN = Query_layer_MSB
+
+
+        x = Query_layer
+        *prefix, N = x.shape
+        assert N % block_size == 0, f"N={N} must be a multiple of block_size={block_size}"
+        num_blocks = N // block_size
+    
+        # === Scores to rank by (use x for "least value"; use x.abs() for "least magnitude") ===
+        scores = x.abs()
+    
+        # Exclude [CLS] and [SEP] from being dropped by giving them +inf during selection
+        INF = torch.finfo(scores.dtype).max if scores.is_floating_point() else torch.iinfo(scores.dtype).max
+        sel_scores = scores.clone()
+        sel_scores[:, :, 0] = INF   # keep CLS
+        sel_scores[:, :, -1] = INF   # keep SEP
+    
+        # Reshape to blocks: [..., num_blocks, block_size]
+        s = sel_scores.reshape(*prefix, num_blocks, block_size)
+    
+        k = max(0, min(int(n_per_block), block_size))  # topk expects a fixed k
+        if k > 0:
+            # Get the k SMALLEST per block (values + indices). largest=False -> smallest.  :contentReference[oaicite:0]{index=0}
+            vals, idx = torch.topk(s, k=k, dim=-1, largest=False, sorted=False)
+    
+            # Build a drop mask per block; ignore any selection that hit +inf (i.e., CLS/SEP)
+            is_finite = torch.isfinite(vals) if vals.is_floating_point() else (vals != INF)  #  :contentReference[oaicite:1]{index=1}
+            drop_blocks = torch.zeros_like(s, dtype=torch.bool)
+            drop_blocks.scatter_(-1, idx, is_finite)  # place True at chosen (finite) indices  :contentReference[oaicite:2]{index=2}
+        else:
+            drop_blocks = torch.zeros_like(s, dtype=torch.bool)
+    
+        # Back to original shape
+        drop_mask = drop_blocks.reshape(*prefix, N)
+    
+        # Enforce hard keep for CLS/SEP
+        drop_mask[:, :, 0]  = False
+        drop_mask[:, :, -1] = False
+    
+        keep_mask = ~drop_mask
+        # print("keep_mask",keep_mask)
+        pruned = x * keep_mask.to(x.dtype)
+        # print("pruned",pruned)
+        return pruned    
+        
+    def Prune_Keys(self, key_layer):
+        # torch.cuda.synchronize()  # Wait for all prior GPU tasks to finish
+        # start = time.time()
+        # Prune_Keys_total = torch.cuda.Event(enable_timing=True)
+        # Prune_Keys_stage1 = torch.cuda.Event(enable_timing=True)
+        # Prune_Keys_stage2 = torch.cuda.Event(enable_timing=True)
+        # Prune_Keys_stage3 = torch.cuda.Event(enable_timing=True)
+        # Prune_Keys_stage4 = torch.cuda.Event(enable_timing=True)
+                
+        # Prune_Keys_total.record()
+        
+        key_dim=key_layer.shape
+        # print("key_dim",key_dim)
+        # print("key_layer")
+        # print(key_layer)     
+        # global MSBFirstround
+        
+        #get the integer part of the Key
+        key_layer_MSB=key_layer/2**MSBFirstround
+        key_layer_MSB=torch.trunc(key_layer_MSB)
+       
+        # print("key_layer_MSB,shape")
+        # print(key_layer_MSB.shape)
+        # print("key_layer_MSB")
+        # print(key_layer_MSB)
+        #get the fraction part of the Key
+        key_layer_Fractions=key_layer-key_layer_MSB
+        #get MSBits
+        msbN = torch.floor(key_layer_MSB / 2**HyperParameters.MSBits )          
+        # print("key_layer_msbN")
+        # print(msbN)
+        
+        
+        #-------------------------------------------------------
+        #-------------------------------------------------------
+        #call Importance function
+        #-------------------------------------------------------
+        #-------------------------------------------------------
+        Importance = self.compute_importance_l1(msbN)
+        # Prune_Keys_stage1.record()
+        # print("Importance.shape")
+        # print(Importance.shape)
+        # print("Importance.")
+        # print(Importance)
+        
+        #------------------------------------------------------------------
+        #------------------------------------------------------------------
+        #Call the cluster algorithm
+        #------------------------------------------------------------------
+        #------------------------------------------------------------------
+        clusters = self.hard_leader_gpu_DeepSeek2(Importance, HyperParameters.tau)
+        # Prune_Keys_stage2.record()
+       
+        
+        #Importance = self.compute_importance_l2(key_layer_MSB)
+        
+        S_mean=torch.mean(Importance,(3))
+        # print("S_mean.shape")
+        # print(S_mean.shape)
+        # print("S_mean.")
+        # print(S_mean)
+        S_max=torch.max(S_mean, dim=2, keepdim=True)[0]
+        # print("S_max.shape")
+        # print(S_max.shape)
+        # print("S_max.")
+        # print(S_max)
+        S_min=torch.min(S_mean, dim=2, keepdim=True)[0]
+        # print("S_min.shape")
+        # print(S_min.shape)
+        # print("S_min.")
+        # print(S_min)
+        S_mean2=torch.mean(S_mean, dim=2, keepdim=True)[0]
+        # print("S_mean2.shape")
+        # print(S_mean2.shape)
+        # print("S_mean2.")
+        # print(S_mean2)
+        # Prune_Keys_stage3.record()
+        #-----------------------------------------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------------------------------------------------
+        #To find the pruning threshold
+        if( HyperParameters.PruningRatio>=0 and HyperParameters.PruningRatio<=1):
+            threshold=torch.add(torch.mul(S_max,HyperParameters.PruningRatio) , (torch.mul(S_mean2,(1-HyperParameters.PruningRatio)) ))
+        elif ( HyperParameters.PruningRatio>=-1 and HyperParameters.PruningRatio<0 ):
+            threshold=torch.add(torch.mul(S_min,-HyperParameters.PruningRatio) ,(torch.mul(S_mean2,(1+HyperParameters.PruningRatio))))
+        #-----------------------------------------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------------------------------------------------
+        
+        #To find the KEEP_Threshold
+        if( HyperParameters.KeepRatio>=0 and HyperParameters.KeepRatio<=1):
+            threshold_KEEP=torch.add(torch.mul(S_max,HyperParameters.KeepRatio) , (torch.mul(S_mean2,(1-HyperParameters.KeepRatio)) ))
+        elif ( HyperParameters.KeepRatio>=-1 and HyperParameters.KeepRatio<0 ):
+            threshold_KEEP=torch.add(torch.mul(S_min,-HyperParameters.KeepRatio) ,(torch.mul(S_mean2,(1+HyperParameters.KeepRatio))))
+        #-----------------------------------------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------------------------------------------------
+                    
+        # print("threshold_KEEP.shape")
+        # print(threshold_KEEP.shape)
+        # print("threshold_KEEP.")
+        # print(threshold_KEEP)
+        threshold_expanded = threshold.expand_as(S_mean)
+        KEEP_threshold_expanded = threshold_KEEP.expand_as(S_mean)
+        # print("KEEP_threshold_expanded.shape")
+        # print(KEEP_threshold_expanded.shape)
+        # print("KEEP_threshold_expanded.")
+        # print(KEEP_threshold_expanded)
+        # Step 1: Create a modified S_mean where [CLS] and [SEP] are set to +inf (always kept)
+        S_mean_modified = S_mean.clone()  # Avoid modifying original tensor
+        S_mean_modified[:, :, 0] = float('inf')    # [CLS] will always pass threshold
+        S_mean_modified[:, :, -1] = float('inf')   # [SEP] will always pass threshold
+        # print("S_mean_modified")
+        # print(S_mean_modified)
+        
+        #############################################
+        #to prune least important%
+        mask=torch.le(S_mean_modified, threshold_expanded)
+        mask = ~mask
+        ############################################
+        #to prune Most important %
+        #mask=torch.gt(S_mean_modified, threshold_expanded)
+        #mask = ~mask
+        ########################################################
+        #KEEP any VAl larger than KEEP Threshold
+        KEEP_MASK = torch.gt(S_mean_modified, KEEP_threshold_expanded)
+        # print("KEEP_MASK.shape")
+        # print(KEEP_MASK.shape)
+        # print("KEEP_MASK.")
+        # print(KEEP_MASK)
+        mask[:, :, 0] = True              # Keep CLS
+        mask[:, :, -1] = True             # Keep SEP
+        # Repeat the last dimension 
+        mask = mask.unsqueeze(-1).repeat(1, 1, 1, key_dim[3])  
+        KEEP_MASK = KEEP_MASK.unsqueeze(-1).repeat(1, 1, 1, key_dim[3])
+        
+        # print("KEEP_MASK.shape")
+        # print(KEEP_MASK.shape)
+        # print("KEEP_MASK.")
+        # print(KEEP_MASK)
+        # exit
+        zero_indices = mask == False
+        # print("Prune mask.shape")
+        # print(mask.shape)
+        # print("Prune mask.")
+        # print(mask)
+        result = key_layer* mask
+        # print("result.shape")
+        # print(result.shape)
+        # print("result.")
+        # print(result)
+        # exit
+        # torch.cuda.synchronize()  # Wait for matmul to finish
+        # end = time.time() 
+        # print("time in 'Prune_Keys' Fun =")
+        # print(f"Time on GPU: {end - start:.6f} seconds")
+        # Prune_Keys_stage4.record()
+        # torch.cuda.synchronize()
+
+        # Print timings
+        # print(f"Prune_Keys_stage 1 time: {Prune_Keys_total.elapsed_time(Prune_Keys_stage1):.3f} ms")
+        # print(f"Prune_Keys_stage 2 time: {Prune_Keys_stage1.elapsed_time(Prune_Keys_stage2):.3f} ms")
+        # print(f"Prune_Keys_stage 3 time: {Prune_Keys_stage2.elapsed_time(Prune_Keys_stage3):.3f} ms")
+        # print(f"Prune_Keys_stage 4 time: {Prune_Keys_stage3.elapsed_time(Prune_Keys_stage4):.3f} ms")
+        
+        # print(f"Total time:   {Prune_Keys_total.elapsed_time(Prune_Keys_stage4):.3f} ms")
+        return result,mask,KEEP_MASK,clusters
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -253,9 +1462,12 @@ class BertSelfAttention(nn.Module):
         else:
             key_layer = self.transpose_for_scores(self.key(hidden_states))
             value_layer = self.transpose_for_scores(self.value(hidden_states))
-
+        
         query_layer = self.transpose_for_scores(mixed_query_layer)
-
+        
+        query_layer=torch.round(query_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        query_layer=torch.clip(query_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
         use_cache = past_key_value is not None
         if self.is_decoder:
             # if cross_attention save Tuple(torch.Tensor, torch.Tensor) of all cross attention key/value_states.
@@ -267,9 +1479,113 @@ class BertSelfAttention(nn.Module):
             # if encoder bi-directional self-attention `past_key_value` is always `None`
             past_key_value = (key_layer, value_layer)
 
+        key_layer=torch.round(key_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        key_layer=torch.clip(key_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        #------------------------------------------------------------------
+        #------------------------------------------------------------------
+        ##CAll the prune KEY Function
+        #------------------------------------------------------------------
+        #------------------------------------------------------------------
+        # print("KEY Shape BEFORE",key_layer.shape)
+        # print("KEY BEFORE",key_layer)
+        # start_total = torch.cuda.Event(enable_timing=True)
+        # after_stage1 = torch.cuda.Event(enable_timing=True)
+        # after_stage2 = torch.cuda.Event(enable_timing=True)
+        # after_stage3 = torch.cuda.Event(enable_timing=True)
+        # after_stage4 = torch.cuda.Event(enable_timing=True)
+        # after_stage5 = torch.cuda.Event(enable_timing=True)
+        # after_stage6 = torch.cuda.Event(enable_timing=True)
+        
+        # start_total.record()
+        PrunedKEYS,mask,KEEP_MASK,clusters = self.Prune_Keys(key_layer)
+        # after_stage1.record()
+        # print("Pruning MASK shape",mask.shape)
+        # print("Pruning MASK",mask)
+        # print("KEEP_MASK shape",KEEP_MASK.shape)
+        # print("KEEP_MASK",KEEP_MASK)
+        # print("KEY Pruned Shape After",PrunedKEYS.shape)
+        # print("KEY Pruned After",PrunedKEYS)
+        
+        # print("Clusters",clusters)
+        #remove pruned indices from the clustering LIST
+        filtered_clusters = self.filter_clusters_by_zero_indices_vectorized_noLOOP(clusters, mask)
+        # after_stage2.record()
+        # print("filtered_clusters After Removing Pruned rows",filtered_clusters)
+        #remove KEEP indicies from clustering List
+        filtered_clusters = self.filter_clusters_by_zero_indices_vectorized_noLOOP(filtered_clusters, ~KEEP_MASK)
+        #avg = self.avg_unique_nonpad(filtered_clusters)
+        
+        
+        # after_stage3.record()
+        # print("filtered_clusters After Removing KEEP rows",filtered_clusters)
+        #filtered_clusters = filtered_clusters.float()
+        KEY_clusteres = self.apply_clustered_row_averaging_vectorized(PrunedKEYS,filtered_clusters)
+        # after_stage4.record()
+        # print("KEY_clusteres Shape AFTER",KEY_clusteres.shape)
+        # print("KEY_clusteres AFTER ",KEY_clusteres)
+        
+        key_layer = KEY_clusteres
+        #find clustering Percent
+        Cluster_Count_current,original_Count_current = self.clustering_stats_vectorized(filtered_clusters)
+        # after_stage5.record()
+        # exit
+        HyperParameters.Cluster_Count = HyperParameters.Cluster_Count + Cluster_Count_current
+        HyperParameters.original_Count = HyperParameters.original_Count + original_Count_current
+        # print("HyperParameters.Cluster_Count",HyperParameters.Cluster_Count)
+        
+        # print("value_layer Shape BEFORE",value_layer.shape)
+        # print("value_layer BEFORE",value_layer)
+        #prune Value with the same mask as KEY
+        value_layer = value_layer * mask 
+        # print("value_layer Pruned Shape After",value_layer.shape)
+        # print("value_layer Pruned After",value_layer)
+        #cluster the Values
+        value_layer = self.apply_clustered_row_averaging_vectorized(value_layer,filtered_clusters)
+        # after_stage6.record()
+        # print("value_layer_clusteres Shape AFTER",value_layer.shape)
+        # print("value_layer_clusteres AFTER ",value_layer)
+        # exit
+        # Wait for all events to complete
+        # torch.cuda.synchronize()
+
+        # # Print timings
+        # print(f"Stage 1 time: {start_total.elapsed_time(after_stage1):.3f} ms")
+        # print(f"Stage 2 time: {after_stage1.elapsed_time(after_stage2):.3f} ms")
+        # print(f"Stage 3 time: {after_stage2.elapsed_time(after_stage3):.3f} ms")
+        # print(f"Stage 4 time: {after_stage3.elapsed_time(after_stage4):.3f} ms")
+        # print(f"Stage 5 time: {after_stage4.elapsed_time(after_stage5):.3f} ms")
+        # print(f"Stage 6 time: {after_stage5.elapsed_time(after_stage6):.3f} ms")
+        # print(f"Total time:   {start_total.elapsed_time(after_stage6):.3f} ms")
+        value_layer=torch.round(value_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        value_layer=torch.clip(value_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
+        #############################
+        #apply to Q 
+        ###############################
+        #-----------------
+        if(HyperParameters.ApplyTO_Q == 1):
+            query_layer = query_layer * mask
+            query_layer = self.apply_clustered_row_averaging_vectorized(query_layer,filtered_clusters)
+            query_layer=torch.round(query_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+            query_layer=torch.clip(query_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        else:
+            query_layer=query_layer
+        #-----------------
+        ###############################################
+        ###############################################
+        #Prune Query based on the query pruning threshold
+        # print("query_layer Before",query_layer)
+        query_layer = self.Prune_Query_N_M(query_layer)
+        # print("query_layer After",query_layer)
+        # exit
+        ###############################################
+        ###############################################
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
-
+        
+        attention_scores=torch.round(attention_scores*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        attention_scores=torch.clip(attention_scores,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
             if use_cache:
@@ -293,23 +1609,28 @@ class BertSelfAttention(nn.Module):
                 attention_scores = attention_scores + relative_position_scores_query + relative_position_scores_key
 
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
+        attention_scores=torch.round(attention_scores*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        attention_scores=torch.clip(attention_scores,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
             attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
-        attention_probs = nn.functional.softmax(attention_scores, dim=-1)
-
+        attention_probs = nn.functional.softmax(attention_scores, dim=-1) 
+        attention_probs=torch.round(attention_probs*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        attention_probs=torch.clip(attention_probs,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
         attention_probs = self.dropout(attention_probs)
-
+        
         # Mask heads if we want to
         if head_mask is not None:
             attention_probs = attention_probs * head_mask
 
         context_layer = torch.matmul(attention_probs, value_layer)
-
+        context_layer=torch.round(context_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        context_layer=torch.clip(context_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(new_context_layer_shape)
@@ -318,6 +1639,7 @@ class BertSelfAttention(nn.Module):
 
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
+        #print("eager")
         return outputs
 
 
@@ -403,7 +1725,15 @@ class BertSdpaSelfAttention(BertSelfAttention):
         is_causal = (
             True if self.is_decoder and not is_cross_attention and attention_mask is None and tgt_len > 1 else False
         )
-
+        query_layer=torch.round(query_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        query_layer=torch.clip(query_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
+        key_layer=torch.round(key_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        key_layer=torch.clip(key_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
+        value_layer=torch.round(value_layer*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        value_layer=torch.clip(value_layer,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
         attn_output = torch.nn.functional.scaled_dot_product_attention(
             query_layer,
             key_layer,
@@ -415,10 +1745,14 @@ class BertSdpaSelfAttention(BertSelfAttention):
 
         attn_output = attn_output.transpose(1, 2)
         attn_output = attn_output.reshape(bsz, tgt_len, self.all_head_size)
-
+        
+        attn_output=torch.round(attn_output*(2**HyperParameters.fractionsFXP))/(2**HyperParameters.fractionsFXP)
+        attn_output=torch.clip(attn_output,min=HyperParameters.MinFXP,max=HyperParameters.MaxFXP)
+        
         outputs = (attn_output,)
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
+        print("SDPA")
         return outputs
 
 
