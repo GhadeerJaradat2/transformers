@@ -1,0 +1,15 @@
+PruningRatio = 0
+KeepRatio = 0.5#1->to keep only xls and sep, -1-->to keep all
+TimeCPU=0
+TimeGPU=0
+MaxFXP=127.99609375#Max value for fixed point representation8.8
+MinFXP=-128#Min value for fixed point representation8.8
+fractionsFXP=8 # number of fractions in FXP 8.8
+MSBits = 4 # if i need the Most significant 4 bits only, 
+tau= 0 #threshold to compare for clustering
+original_Count = 0
+Cluster_Count = 0
+ApplyTO_Q = 0# 0-->Dont apply to Q, 1--> Apply to Q
+QueryPrRatio = -1
+QueryBlock = 8
+n_per_Queryblock = 1
